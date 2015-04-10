@@ -10,3 +10,5 @@ This implementation has been tested on Mac OS X 10.10.3, but should work on any 
 * [igraph](http://igraph.org/python/)
 
 These packages may be installed individually. A useful collection of these and related libraries for scientific computing with Python may be installed using [Enthought](https://store.enthought.com).
+
+Visualization of the epsilon-machines requires [Graphviz](http://graphviz.org) or similar software for reading [dot](http://en.wikipedia.org/wiki/DOT_(graph_description_language)) files.
