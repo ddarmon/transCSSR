@@ -1,0 +1,10 @@
+State A
+1, 0
+P(X = 1 | S = s) = 0.95
+State R
+0, 1
+1, 1
+P(X = 1 | S = s) = 0.0
+State N
+0, 0
+P(X = 1 | S = s) = 0.1
