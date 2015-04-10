@@ -76,7 +76,7 @@ else:
 # axs = ['0', '1']
 # ays = ['0', '1']
 
-axs = ['0', '1', '2']
+axs = ['0', '1']
 ays = ['0', '1']
 
 e_symbols = list(itertools.product(axs, ays)) # All of the possible pairs of emission
@@ -101,16 +101,6 @@ word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, s
 epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name)
 
 print 'The epsilon-transducer has {} states.'.format(len(invepsilon))
-
-# os.system('open transCSSR_results/mydot-det_transients.dot'.format(Xt_name, Yt_name))
-# os.system('open transCSSR_results/mydot-det_recurrent.dot'.format(Xt_name, Yt_name))
-
-if len(invepsilon) < 30:
-	os.system('open transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name))
-else:
-	print 'Warning: The epsilon-transducer has {} states, so we will not open the dot file.'
-
-os.system('open transCSSR_results/{}+{}.dat_results'.format(Xt_name, Yt_name))
 
 print_morph_by_states(morph_by_state)
 
