@@ -8,7 +8,7 @@ import numpy
 # the last 0), it emits 0 and 1 with equal probability, e.g.
 # 		P(Yt = x | Xt = x, Odd Parity) = 1/2.
 
-T = 10000
+T = 100000
 
 parity = 0 	# 0 when we've observed an even number of 1s
 			# since the last 0, 1 otherwise.

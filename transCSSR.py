@@ -567,6 +567,131 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 					wfile.write('{} -> {} [label = \"{}\"];\n'.format(numeric_to_alpha(printing_lookup[from_state]), numeric_to_alpha(printing_lookup[to_state]), W[(from_state, to_state)]))
 		
 		wfile.write('}')
+def draw_dot_singlearrows_memoryless(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max):
+	"""
+	This function draws the .dot file associated with the 
+	epsilon-transducer stored in epsilon+invepsilon.
+	
+	This version works with *memoryless* transducers,
+	where we assume that the output at time t only depends
+	on the previous inputs.
+
+	Parameters
+	----------
+	fname : str
+			The name for the .dot file.
+	epsilon : dict
+			A mapping from a history of length <= L_max to its
+			associated causal state.
+	invepsilon : dict
+			A mapping from a causal state to the histories
+			in that causal state.
+	axs : list
+			The emission symbols associated with X.
+	ays : list
+			The emission symbols associated with Y.
+	L_max : int
+			The maximum history length used in estimating the
+			predictive distributions.
+	
+	Notes
+	-----
+	Any notes go here.
+
+	Examples
+	--------
+	>>> import module_name
+	>>> # Demonstrate code here.
+
+	"""
+	
+	output_lookup = {} # Create an ordering of the output alphabet $\mathcal{Y}$,
+					   # for indexing into the predictive distribution.
+	
+	for y_ind, y in enumerate(ays):
+		output_lookup[y] = y_ind
+	
+	prob_by_state = {}
+	
+	for state in invepsilon:
+		counts = numpy.array(morph_by_state[state], dtype = 'float')
+		prob = counts/numpy.sum(counts)
+		
+		prob_by_state[state] = prob
+	
+	dot_header = 'digraph  {\nsize = \"6,8.5\";\nratio = "fill";\nnode\n[shape = circle];\nnode [fontsize = 24];\nnode [penwidth = 5];\nedge [fontsize = 24];\nnode [fontname = \"CMU Serif Roman\"];\ngraph [fontname = \"CMU Serif Roman\"];\nedge [fontname = \"CMU Serif Roman\"];\n'
+
+	with open('{}.dot'.format(fname), 'w') as wfile:
+		wfile.write(dot_header)
+
+		# Draw associated candidate CSM.
+		
+		# Report the states as 0 through (# states) - 1.
+		
+		printing_lookup = {}
+		
+		for state_rank, state in enumerate(invepsilon.keys()):
+			printing_lookup[state] = state_rank
+		
+		seen_transition = {}
+		
+		exists_transition = {} # Whether a transition exists (from_state, to_state)
+		
+		W = defaultdict(str) # The stochastic matrix, stored as a string, by state
+		
+		for state in invepsilon.keys():
+			need_Lmax = True # Whether or not we need to use the length L_max histories in
+							 # defining the transition structure.
+			
+			for hist in invepsilon[state].keys():
+				if len(hist[0]) == L_max - 1:
+					need_Lmax = False
+			
+			for history in invepsilon[state]:
+				if len(history[0]) == L_max:
+					if need_Lmax:
+						for ay in ays:
+							for ax in axs:
+								to_state = epsilon.get((history[0][1:] + ax, len(history[0][1:])*'n' + 'n'), -1)
+
+								if to_state == -1:
+									pass
+								else:
+									if seen_transition.get((state, to_state, (ax, ay)), False):
+										pass
+									else:
+										seen_transition[(state, to_state, (ax, ay))] = True
+										
+										exists_transition[(state, to_state)] = True
+										
+										W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
+							
+										# wfile.write('{} -> {} [label = \"({}, {})\"];\n'.format(numeric_to_alpha(printing_lookup[state]), numeric_to_alpha(printing_lookup[to_state]), ax, ay))
+					else:
+						pass
+				else:
+					for ay in ays:
+						for ax in axs:
+							to_state = epsilon.get((history[0] + ax, len(history[1])*'n' + 'n'), -1)
+
+							if to_state == -1:
+								pass
+							else:
+								if seen_transition.get((state, to_state, (ax, ay)), False):
+									pass
+								else:
+									seen_transition[(state, to_state, (ax, ay))] = True
+							
+									exists_transition[(state, to_state)] = True
+									
+									W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
+		
+		for from_state in invepsilon.keys():
+			for to_state in invepsilon.keys():
+				if exists_transition.get((from_state, to_state), False):
+					wfile.write('{} -> {} [label = \"{}\"];\n'.format(numeric_to_alpha(printing_lookup[from_state]), numeric_to_alpha(printing_lookup[to_state]), W[(from_state, to_state)]))
+		
+		wfile.write('}')
 def draw_dot_memoryless(fname, epsilon, invepsilon, axs, ays, L_max):
 	"""
 	This function draws the .dot file associated with the 
@@ -660,7 +785,7 @@ def draw_dot_memoryless(fname, epsilon, invepsilon, axs, ays, L_max):
 									seen_transition[(state, to_state, (ax, ay))] = True
 							
 									wfile.write('{} -> {} [label = \"({}, {})\"];\n'.format(numeric_to_alpha(printing_lookup[state]), numeric_to_alpha(printing_lookup[to_state]), ax, ay))
-		wfile.write('\}')
+		wfile.write('}')
 
 def numeric_to_alpha(value):
 	"""
@@ -1731,6 +1856,7 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 										
 											for emission_ind in range(len(ays)):
 												morph_by_state[cur_best_state][emission_ind] += morph_by_history[emission_ind]
+											
 								
 									if not is_matching_state:
 										# Create a new state
@@ -2176,6 +2302,7 @@ def run_transCSSR_memoryless(word_lookup_marg, word_lookup_fut, L_max, axs, ays,
 										
 											for emission_ind in range(len(ays)):
 												morph_by_state[cur_best_state][emission_ind] += morph_by_history[emission_ind]
+											
 								
 									if not is_matching_state:
 										# Create a new state
@@ -2431,10 +2558,10 @@ def run_transCSSR_memoryless(word_lookup_marg, word_lookup_fut, L_max, axs, ays,
 	# save_states('transCSSR_results/mydot-det_recurrent', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	
 	if fname == None:
-		draw_dot_memoryless('transCSSR_results/{}+{}-memoryless'.format(Xt_name, Yt_name), epsilon, invepsilon, axs, ays, L_max)
+		draw_dot_singlearrows_memoryless('transCSSR_results/{}+{}-memoryless'.format(Xt_name, Yt_name), epsilon, invepsilon, axs, ays, L_max)
 		save_states_memoryless('transCSSR_results/{}+{}-memoryless'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	else:
-		draw_dot_memoryless('transCSSR_results/{}-memoryless'.format(fname), epsilon, invepsilon, axs, ays, L_max)
+		draw_dot_singlearrows_memoryless('transCSSR_results/{}-memoryless'.format(fname), epsilon, invepsilon, axs, ays, L_max)
 		save_states_memoryless('transCSSR_results/{}-memoryless'.format(fname), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	
 	return epsilon, invepsilon, morph_by_state

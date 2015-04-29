@@ -1279,11 +1279,9 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 	morph_by_state = {}
 	
 	# The degrees of freedom for the hypothesis test. It is
-	# the cardinality of the output alphabet minus 1.
+	# the cardinality of the input/output alphabet minus 1.
 	
-	# df = len(axs)*(len(ays) - 1)
 	df = len(axs)*len(ays) - 1
-	# df = (len(axs)-1)*(len(ays) - 1)
 
 	# Stage 1: Initialize.
 	# 
@@ -1380,6 +1378,7 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 													if pvalue > cur_best_pvalue:
 														cur_best_pvalue = pvalue
 														cur_best_state = altstate
+									
 										
 										if cur_best_state == -1:
 											is_matching_state = False
@@ -1391,6 +1390,7 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 										
 											for emission_ind in range(len(e_symbols)):
 												morph_by_state[cur_best_state][emission_ind] += morph_by_history[emission_ind]
+											
 								
 									if not is_matching_state:
 										# Create a new state
