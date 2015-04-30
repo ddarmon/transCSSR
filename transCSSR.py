@@ -2366,8 +2366,8 @@ def run_transCSSR_memoryless(word_lookup_marg, word_lookup_fut, L_max, axs, ays,
 	
 	# Save the causal states prior to any attempt at removing transients or determinizing.
 
-	# draw_dot('transCSSR_results/mydot-nondet_transients', epsilon, invepsilon, axs, ays, L_max)
-	# save_states('transCSSR_results/mydot-nondet_transients', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+	# draw_dot_singlearrows_memoryless('/Users/daviddarmon/Dropbox/transfer/tmp-dots/mydot-nondet_transients', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+	# save_states('/Users/daviddarmon/Dropbox/transfer/tmp-dots/mydot-nondet_transients', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 
 	# Stage 3: Determinize.
 
@@ -2380,8 +2380,8 @@ def run_transCSSR_memoryless(word_lookup_marg, word_lookup_fut, L_max, axs, ays,
 
 	clusters, state_matrix, trans_dict, states_to_index, index_to_states = get_connected_component_memoryless(epsilon, invepsilon, e_symbols, L_max)
 	
-	# draw_dot('transCSSR_results/mydot-predet', epsilon, invepsilon, axs, ays, L_max)
-	# save_states('transCSSR_results/mydot-predet', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+	# draw_dot_singlearrows_memoryless('/Users/daviddarmon/Dropbox/transfer/tmp-dots/mydot-predet', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+	# save_states('/Users/daviddarmon/Dropbox/transfer/tmp-dots/mydot-predet', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 
 	# Check determinism 'by hand'
 
@@ -2547,15 +2547,15 @@ def run_transCSSR_memoryless(word_lookup_marg, word_lookup_fut, L_max, axs, ays,
 
 	# print_transitions(epsilon, invepsilon)
 
-	# draw_dot('transCSSR_results/mydot-det_transients', epsilon, invepsilon, axs, ays, L_max)
-	# save_states('transCSSR_results/mydot-det_transients', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+	# draw_dot_singlearrows_memoryless('/Users/daviddarmon/Dropbox/transfer/tmp-dots/mydot-det_transients', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+	# save_states('/Users/daviddarmon/Dropbox/transfer/tmp-dots/mydot-det_transients', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 
 	# Remove any transient states introduced by the determinization step.
 
 	remove_transients(epsilon, invepsilon, morph_by_state, e_symbols, L_max, memoryless = True)
-	
-	# draw_dot('transCSSR_results/mydot-det_recurrent', epsilon, invepsilon, axs, ays, L_max)
-	# save_states('transCSSR_results/mydot-det_recurrent', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+
+	# draw_dot_singlearrows_memoryless('/Users/daviddarmon/Dropbox/transfer/tmp-dots/mydot-det_recurrent', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+	# save_states('/Users/daviddarmon/Dropbox/transfer/tmp-dots/mydot-det_recurrent', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	
 	if fname == None:
 		draw_dot_singlearrows_memoryless('transCSSR_results/{}+{}-memoryless'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
@@ -2566,7 +2566,7 @@ def run_transCSSR_memoryless(word_lookup_marg, word_lookup_fut, L_max, axs, ays,
 	
 	return epsilon, invepsilon, morph_by_state
 
-def filter_and_predict_old(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L, memoryless = False):
+def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L, prior_pred = 0.5, memoryless = False):
 	"""
 	Given a realization from an input/output process
 	and an epsilon-transducer for that process, 
@@ -2600,154 +2600,11 @@ def filter_and_predict_old(stringX, stringY, epsilon, invepsilon, morph_by_state
 	L : int
 			The maximum history length to use in filtering
 			the input/output process.
-	memoryless : bool
-			If true, assume the transducer is memoryless,
-			i.e. the next emission of the output process
-			only depends on the past of the input process.
-
-	Returns
-	-------
-	filtered_states : list
-			The causal state sequence filtered
-			from the input/output process.
-	filtered_probs : list
-			The probability that the output process
-			emits a 1, given the current causal state.
-	stringY_pred : str
-			The predicted values of the output process,
-			chosen to maximize the accurracy.
-
-	Notes
-	-----
-	Any notes go here.
-
-	Examples
-	--------
-	>>> import module_name
-	>>> # Demonstrate code here.
-
-	"""
-	
-	prob_by_state = {}
-
-	for state in morph_by_state:
-		prob_by_state[state] = numpy.array(morph_by_state[state])/float(numpy.sum(morph_by_state[state]))
-
-	# Get out the transitions.
-
-	trans_dict = get_transitions(epsilon, invepsilon, e_symbols, L, memoryless = memoryless)
-
-	filtered_states = []
-	filtered_probs  = []
-
-	for ind in range(L-2):
-		filtered_states.append(-1)
-		filtered_probs.append(0.5)
-		
-	
-	if memoryless:
-		s0 = epsilon.get((stringX[:L-1], 'n'*(L-1)), -1)
-	else:
-		s0 = epsilon.get((stringX[:L-1], stringY[:L-1]), -1)
-
-	filtered_states.append(s0)
-	
-	if s0 == -1:
-		filtered_probs.append(0.5)
-	else:
-		filtered_probs.append(prob_by_state[s0][1])
-
-	num_ahead = 0
-	
-	# The second condition in this statement makes sure that
-	# we don't loop *forever* in the case where we never synchronize.
-	
-	while s0 == -1 and len(filtered_states) < len(stringX): # In case we fail to synchronize at the first time we can...
-		num_ahead += 1
-		
-		if memoryless:
-			s0 = epsilon.get((stringX[num_ahead:L+num_ahead], 'n'*L), -1)
-		else:
-			s0 = epsilon.get((stringX[num_ahead:L+num_ahead], stringY[num_ahead:L+num_ahead]), -1)
-	
-		filtered_states.append(s0)
-		
-		if s0 == -1:
-			filtered_probs.append(0.5)
-		else:
-			filtered_probs.append(prob_by_state[s0][1])
-
-	for ind in range(L-1+num_ahead, len(stringX)):
-		e_symbol = (stringX[ind], stringY[ind])
-		
-		if s0 == -1:
-			
-			if memoryless:
-				s1 = epsilon.get((stringX[ind-L+1:ind+1], 'n'*L), -1) # For when we need to resynchronize
-			else:
-				s1 = epsilon.get((stringX[ind-L+1:ind+1], stringY[ind-L+1:ind+1]), -1) # For when we need to resynchronize
-		else:
-			if memoryless:
-				s1 = trans_dict.get((s0, (e_symbol[0], 'n')), -1)
-			else:
-				s1 = trans_dict.get((s0, e_symbol), -1)
-		filtered_states.append(s1)
-		
-		if s1 == -1:
-			filtered_probs.append(0.5)
-		else:
-			filtered_probs.append(prob_by_state[s1][1])
-	
-		s0 = s1
-
-	Y_pred = ['N']
-
-	for state in filtered_states:
-		if state == -1:
-			y = 'N'
-		else:
-			y = str(ays[numpy.argmax(prob_by_state[state])])
-	
-		Y_pred.append(y)
-
-	stringY_pred = ''.join(Y_pred)
-	
-	return filtered_states, filtered_probs, stringY_pred
-	
-def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L, memoryless = False):
-	"""
-	Given a realization from an input/output process
-	and an epsilon-transducer for that process, 
-	filter_and_predict filters the transducer-states,
-	and the predictive probabilities associated with
-	those states.
-
-	Parameters
-	----------
-	stringX : str
-			The string associated with the realization from the
-			input process X.
-	stringY : str
-			The string associated with the realization from the
-			output process Y.
-	epsilon : dict
-			A mapping from a history of length <= L_max to its
-			associated causal state.
-	invepsilon : dict
-			A mapping from a causal state to the histories
-			in that causal state.
-	morph_by_state : list
-			The counts associated with the predictive distribution
-			for a particular state.
-	axs : list
-			The emission symbols associated with X.
-	ays : list
-			The emission symbols associated with Y.
-	e_symbols : list
-			The emission symbols associated with (X, Y).
-	L : int
-			The maximum history length to use in filtering
-			the input/output process.
+	prior_pred : float
+			The prior probability assigned to seeing a 1.
+			This allows for 'blind' prediction when
+			the current causal state is unknown because
+			of a failure to synchronize.
 	memoryless : bool
 			If true, assume the transducer is memoryless,
 			i.e. the next emission of the output process
@@ -2830,14 +2687,20 @@ def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, ax
 		filtered_states.append(s1)
 	
 		s0 = s1
-
-	Y_pred = ['N']
-	filtered_probs = [0.5]
+	
+	if prior_pred < 0.5:
+		Y_pred = ['0']
+	else:
+		Y_pred = ['1']
+	filtered_probs = [prior_pred]
 
 	for state in filtered_states:
 		if state == -1:
-			y = 'N'
-			p = 0.5
+			if prior_pred < 0.5:
+				y = '0'
+			else:
+				y = '1'
+			p = prior_pred
 		else:
 			y = str(ays[numpy.argmax(prob_by_state[state])])
 			p = prob_by_state[state][1]
@@ -2848,7 +2711,7 @@ def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, ax
 	stringY_pred = ''.join(Y_pred)
 	
 	return filtered_states, filtered_probs, stringY_pred
-def run_tests_transCSSR(fnameX, fnameY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L, L_max = None, metric = None, memoryless = False, verbose = True):
+def run_tests_transCSSR(fnameX, fnameY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L, L_max = None, metric = None, memoryless = False, verbose = True, prior_pred = 0.5):
 	"""
 	Run various predictive tests (accuracy, precision, recall, 
 	F-score, empirical total variation distance)  on the 
@@ -2897,6 +2760,11 @@ def run_tests_transCSSR(fnameX, fnameY, epsilon, invepsilon, morph_by_state, axs
 			only depends on the past of the input process.
 	verbose : bool
 			If true, print various warning messages.
+	prior_pred : float
+			The prior probability assigned to seeing a 1.
+			This allows for 'blind' prediction when
+			the current causal state is unknown because
+			of a failure to synchronize.
 	
 	Returns
 	-------
@@ -2947,7 +2815,7 @@ def run_tests_transCSSR(fnameX, fnameY, epsilon, invepsilon, morph_by_state, axs
 
 	for line_ind in range(len(linesX)):
 		stringX = linesX[line_ind]; stringY = linesY[line_ind]
-		state_series, predict_probs, prediction = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max, memoryless = memoryless)
+		state_series, predict_probs, prediction = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max, memoryless = memoryless, prior_pred = prior_pred)
 		
 		# Originally, I had
 
