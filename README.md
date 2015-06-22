@@ -8,6 +8,8 @@ This implementation has been tested on Mac OS X 10.10.3, but should work on any 
 * [scipy](http://www.scipy.org)
 * [pandas](http://pandas.pydata.org)
 * [igraph](http://igraph.org/python/)
+* [pylab] (http://wiki.scipy.org/PyLab)
+* [matplotlib] (http://matplotlib.org)
 
 These packages may be installed individually. A useful collection of these and related libraries for scientific computing with Python may be installed using [Enthought](https://store.enthought.com).
 
