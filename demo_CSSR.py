@@ -28,14 +28,14 @@ data_prefix = ''
 # Yt_name = 'coinflip_through_periodicevenkick'
 # Yt_name = 'even_through_even'
 # Yt_name = 'even'
-# Yt_name = 'rip'
+Yt_name = 'rip'
 # Yt_name = 'rip-rev'
 # Yt_name = 'barnettY'
 # Yt_name = 'even-excite_w_refrac'
 # Yt_name = 'coinflip-excite_w_refrac'
 # Yt_name = 'coinflip'
 # Yt_name = 'period4'
-Yt_name = 'golden-mean'
+# Yt_name = 'golden-mean'
 # Yt_name = 'golden-mean-rev'
 # Yt_name = 'complex-csm'
 # Yt_name = 'tricoin_through_singh-machine'
@@ -73,10 +73,7 @@ else:
 #
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# axs = ['0', '1']
-# ays = ['0', '1']
-
-axs = ['0', '1']
+axs = ['0']
 ays = ['0', '1']
 
 e_symbols = list(itertools.product(axs, ays)) # All of the possible pairs of emission
@@ -98,7 +95,7 @@ T = Tx
 
 word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_max)
 
-epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name)
+epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, is_eM = True)
 
 print 'The epsilon-transducer has {} states.'.format(len(invepsilon))
 

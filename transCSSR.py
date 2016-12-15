@@ -445,7 +445,7 @@ def draw_dot(fname, epsilon, invepsilon, axs, ays, L_max):
 							
 									wfile.write('{} -> {} [label = \"({}, {})\"];\n'.format(numeric_to_alpha(printing_lookup[state]), numeric_to_alpha(printing_lookup[to_state]), ax, ay))
 		wfile.write('}')
-def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits = False):
+def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max, is_eM = False, all_digits = False):
 	"""
 	This function draws the .dot file associated with the 
 	epsilon-transducer stored in epsilon+invepsilon.
@@ -547,9 +547,14 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 										exists_transition[(state, to_state)] = True
 										
 										if all_digits:
-											W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
+											p_to_print = '{}'.format(prob_by_state[state][output_lookup[ay]])
 										else:
-											W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
+											p_to_print = '{:.3}'.format(prob_by_state[state][output_lookup[ay]])
+
+										if is_eM:
+											W[(state, to_state)] += '{}:{}\\l'.format(ay, p_to_print)
+										else:
+											W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, p_to_print)
 					else:
 						pass
 				else:
@@ -568,9 +573,14 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 									exists_transition[(state, to_state)] = True
 									
 									if all_digits:
-										W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
+										p_to_print = '{}'.format(prob_by_state[state][output_lookup[ay]])
 									else:
-										W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
+										p_to_print = '{:.3}'.format(prob_by_state[state][output_lookup[ay]])
+
+									if is_eM:
+										W[(state, to_state)] += '{}:{}\\l'.format(ay, p_to_print)
+									else:
+										W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, p_to_print)
 		
 		for from_state in invepsilon.keys():
 			for to_state in invepsilon.keys():
@@ -1835,7 +1845,7 @@ def estimate_predictive_distributions_memoryless(stringX, stringY, L_max, is_mul
 	
 	return word_lookup_marg, word_lookup_fut
 
-def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, test_type = 'G', alpha = 0.001, fname = None, verbose = False, all_digits = False):
+def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, test_type = 'G', alpha = 0.001, fname = None, verbose = False, is_eM = False, all_digits = False):
 	"""
 	run_transCSSR performs the CSSR algorithm, adapted for
 	epsilon-transducers, to estimate the Shalizi-style
@@ -2279,10 +2289,10 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 	# save_states('transCSSR_results/mydot-det_recurrent', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	
 	if fname == None:
-		draw_dot_singlearrows('transCSSR_results/{}+{}'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits)
+		draw_dot_singlearrows('transCSSR_results/{}+{}'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max, is_eM, all_digits)
 		save_states('transCSSR_results/{}+{}'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	else:
-		draw_dot_singlearrows('transCSSR_results/{}'.format(fname), epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits)
+		draw_dot_singlearrows('transCSSR_results/{}'.format(fname), epsilon, invepsilon, morph_by_state, axs, ays, L_max, is_eM, all_digits)
 		save_states('transCSSR_results/{}'.format(fname), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	
 	return epsilon, invepsilon, morph_by_state
