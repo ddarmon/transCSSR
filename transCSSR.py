@@ -445,7 +445,7 @@ def draw_dot(fname, epsilon, invepsilon, axs, ays, L_max):
 							
 									wfile.write('{} -> {} [label = \"({}, {})\"];\n'.format(numeric_to_alpha(printing_lookup[state]), numeric_to_alpha(printing_lookup[to_state]), ax, ay))
 		wfile.write('}')
-def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max):
+def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits = False):
 	"""
 	This function draws the .dot file associated with the 
 	epsilon-transducer stored in epsilon+invepsilon.
@@ -471,6 +471,10 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 	L_max : int
 			The maximum history length used in estimating the
 			predictive distributions.
+	all_digits : boolean
+			Whether to print all of the digits for the transition
+			probabilities (if you want to use bootstrapping)
+			or not (if you just want a clean eM / eT).
 	
 	Notes
 	-----
@@ -542,9 +546,10 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 										
 										exists_transition[(state, to_state)] = True
 										
-										W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
-							
-										# wfile.write('{} -> {} [label = \"({}, {})\"];\n'.format(numeric_to_alpha(printing_lookup[state]), numeric_to_alpha(printing_lookup[to_state]), ax, ay))
+										if all_digits:
+											W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
+										else:
+											W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
 					else:
 						pass
 				else:
@@ -562,7 +567,10 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 							
 									exists_transition[(state, to_state)] = True
 									
-									W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
+									if all_digits:
+										W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
+									else:
+										W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
 		
 		for from_state in invepsilon.keys():
 			for to_state in invepsilon.keys():
@@ -570,7 +578,7 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 					wfile.write('{} -> {} [label = \"{}\"];\n'.format(numeric_to_alpha(printing_lookup[from_state]), numeric_to_alpha(printing_lookup[to_state]), W[(from_state, to_state)]))
 		
 		wfile.write('}')
-def draw_dot_singlearrows_memoryless(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max):
+def draw_dot_singlearrows_memoryless(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits = False):
 	"""
 	This function draws the .dot file associated with the 
 	epsilon-transducer stored in epsilon+invepsilon.
@@ -596,6 +604,10 @@ def draw_dot_singlearrows_memoryless(fname, epsilon, invepsilon, morph_by_state,
 	L_max : int
 			The maximum history length used in estimating the
 			predictive distributions.
+	all_digits : boolean
+			Whether to print all of the digits for the transition
+			probabilities (if you want to use bootstrapping)
+			or not (if you just want a clean eM / eT).
 	
 	Notes
 	-----
@@ -667,9 +679,10 @@ def draw_dot_singlearrows_memoryless(fname, epsilon, invepsilon, morph_by_state,
 										
 										exists_transition[(state, to_state)] = True
 										
-										W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
-							
-										# wfile.write('{} -> {} [label = \"({}, {})\"];\n'.format(numeric_to_alpha(printing_lookup[state]), numeric_to_alpha(printing_lookup[to_state]), ax, ay))
+										if all_digits:
+											W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
+										else:
+											W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
 					else:
 						pass
 				else:
@@ -687,7 +700,10 @@ def draw_dot_singlearrows_memoryless(fname, epsilon, invepsilon, morph_by_state,
 							
 									exists_transition[(state, to_state)] = True
 									
-									W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
+									if all_digits:
+										W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
+									else:
+										W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][output_lookup[ay]])
 		
 		for from_state in invepsilon.keys():
 			for to_state in invepsilon.keys():
@@ -1819,7 +1835,7 @@ def estimate_predictive_distributions_memoryless(stringX, stringY, L_max, is_mul
 	
 	return word_lookup_marg, word_lookup_fut
 
-def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, test_type = 'G', alpha = 0.001, fname = None, verbose = False):
+def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, test_type = 'G', alpha = 0.001, fname = None, verbose = False, all_digits = False):
 	"""
 	run_transCSSR performs the CSSR algorithm, adapted for
 	epsilon-transducers, to estimate the Shalizi-style
@@ -1864,6 +1880,10 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 			files.
 	verbose : bool
 			If true, print various progress and warning messages.
+	all_digits : boolean
+			Whether to print all of the digits for the transition
+			probabilities (if you want to use bootstrapping)
+			or not (if you just want a clean eM / eT).
 
 	Returns
 	-------
@@ -2259,10 +2279,10 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 	# save_states('transCSSR_results/mydot-det_recurrent', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	
 	if fname == None:
-		draw_dot_singlearrows('transCSSR_results/{}+{}'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+		draw_dot_singlearrows('transCSSR_results/{}+{}'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits)
 		save_states('transCSSR_results/{}+{}'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	else:
-		draw_dot_singlearrows('transCSSR_results/{}'.format(fname), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+		draw_dot_singlearrows('transCSSR_results/{}'.format(fname), epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits)
 		save_states('transCSSR_results/{}'.format(fname), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	
 	return epsilon, invepsilon, morph_by_state
@@ -2705,10 +2725,10 @@ def run_transCSSR_memoryless(word_lookup_marg, word_lookup_fut, L_max, axs, ays,
 	# save_states('/Users/daviddarmon/Dropbox/transfer/tmp-dots/mydot-det_recurrent', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	
 	if fname == None:
-		draw_dot_singlearrows_memoryless('transCSSR_results/{}+{}-memoryless'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+		draw_dot_singlearrows_memoryless('transCSSR_results/{}+{}-memoryless'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits)
 		save_states_memoryless('transCSSR_results/{}+{}-memoryless'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	else:
-		draw_dot_singlearrows_memoryless('transCSSR_results/{}-memoryless'.format(fname), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+		draw_dot_singlearrows_memoryless('transCSSR_results/{}-memoryless'.format(fname), epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits)
 		save_states_memoryless('transCSSR_results/{}-memoryless'.format(fname), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	
 	return epsilon, invepsilon, morph_by_state
@@ -3435,6 +3455,105 @@ def compute_eM_transition_matrix(machine_fname, axs, inf_alg):
 				P[M_offset_to, M_offset_from] += pM_to
 	
 	return P, M_states_to_index, M_trans
+	
+def compute_eM_transition_matrix_uniform(machine_fname, axs, inf_alg):
+	"""
+	Given an epsilon-machine, compute_eM_transition_matrix_uniform returns
+	the transition matrix for the an eM with the same topology
+	as the provided eM, but with uniform transitions out of
+	each causal state.
+	
+	Note: At present, this only works with eMs over *binary* alphabets.
+
+	Parameters
+	----------
+	machine_fname : string
+			The path to the epsilon-machine in dot format.
+	axs : list
+			The process alphabet.
+	inf_alg : string
+			The inference algorithm used to estimate the machine.
+			One of {'CSSR', 'transCSSR'}
+
+	Returns
+	-------
+	P : numpy array
+			The transition matrix for the Markov
+			chain associated with the mixed states.
+	M_states_to_index : dict
+			An ordered lookup for the machine
+			causal states.
+
+	Notes
+	-----
+	Any notes go here.
+
+	Examples
+	--------
+	>>> import module_name
+	>>> # Demonstrate code here.
+
+	"""
+
+	if len(axs) > 2:
+		print "This function can currently only compute L-word probabilities over *binary* alphabets."
+		raise ValueError
+	
+	# Read in the transition matrices for the 
+	# input process epsilon-machine and the
+	# epsilon-transducer.
+	
+	M_trans, M_states = load_transition_matrix_machine('{}'.format(machine_fname), inf_alg = inf_alg)
+
+	# Determine the number of states resulting from a
+	# direct product of the epsilon-machine and
+	# epsilon-transducer states.
+
+	num_mixed_states = len(M_states)
+
+	# Store the mixed state-to-mixed state transition
+	# probabilities.
+
+	# Note: We store these as P[i, j] = P(S_{1} = i | S_{0} = j),
+	# e.g. p_{i<-j}, the opposite of the usual way of storing
+	# transition probabilities. We do this so that we can
+	# compute the *right* eigenvectors of the transition matrix
+	# instead of the left eigenvectors.
+
+	P = numpy.zeros(shape = (num_mixed_states, num_mixed_states))
+
+	# Create an ordered lookup the machine states.
+
+	M_states_to_index = {}
+
+	for s, M_state in enumerate(M_states):
+		M_states_to_index[M_state] = s
+
+	# Populate P by traversing *from* each
+	# mixed state, and accumulating the probability
+	# for the states transitioned *to*.
+
+	for SM in M_states:
+		j_from = M_states_to_index[SM]
+	
+		M_offset_from = j_from
+	
+		for ax in axs:
+			SM_to, pM_to = M_trans.get((SM, ax), (None, 0))
+		
+			if SM_to != None:
+				j_to = M_states_to_index[SM_to]
+		
+				M_offset_to = j_to
+				
+				if pM_to != 1.0:
+					M_trans[(SM, ax)] = (SM_to, 0.5)
+					P[M_offset_to, M_offset_from] = 0.5
+				else:
+					M_trans[(SM, ax)] = (SM_to, 1.0)
+					P[M_offset_to, M_offset_from] = 1.0
+	
+	return P, M_states_to_index, M_trans
 
 def compute_channel_states_distribution(P, M_states, T_states):
 	"""
@@ -3830,6 +3949,76 @@ def predict_presynch_eM(stringX, machine_fname, axs, inf_alg, M_states_to_index 
 
 	return pred_probs, cur_states
 
+def compute_word_probability_eM(stringX, machine_fname, axs, inf_alg, M_states_to_index = None, M_trans = None, stationary_dist_eM = None, uniform = False):
+	"""
+	Given an epsilon-machine and stringX, compute_word_probability_eM
+	returns the probability of observing stringX out of all
+	L = len(stringX) words:
+		P(X_{1}^{L} = stringX)
+	Thus, this provides the *marginal* block-L probability.
+
+	Parameters
+	----------
+	stringX : string
+			The string to return the predictive distribution
+			over axs for.
+	machine_fname : string
+			The path to the epsilon-machine in dot format.
+	axs : list
+			The process alphabet.
+	inf_alg : string
+			The inference algorithm used to estimate the machine.
+			One of {'CSSR', 'transCSSR'}
+
+	Returns
+	-------
+	p_L : float
+			p_L = P(stringX) calculated from the stationary
+			distribution of the causal states.
+
+	Notes
+	-----
+	Any notes go here.
+
+	Examples
+	--------
+	>>> import module_name
+	>>> # Demonstrate code here.
+
+	"""
+	
+	if stationary_dist_eM == None:
+		if uniform:
+			P, M_states_to_index, M_trans = compute_eM_transition_matrix_uniform(machine_fname, axs, inf_alg = inf_alg)
+		else:
+			P, M_states_to_index, M_trans = compute_eM_transition_matrix(machine_fname, axs, inf_alg = inf_alg)
+
+		stationary_dist_mixed, stationary_dist_eM = compute_channel_states_distribution(P, {'A' : 0}, M_states_to_index)
+
+	p_L = 0
+	
+	cur_states = [0 for state in M_states_to_index]
+
+	for SM in M_states_to_index:
+		from_state = SM
+	
+		p_state = stationary_dist_eM[M_states_to_index[SM]]
+	
+		for t in range(len(stringX)):
+			to_state, p = M_trans.get((from_state, stringX[t]), (None, 0))
+		
+			if p == 0:
+				p_state = 0
+				break
+			else:
+				p_state = p_state*p
+		
+			from_state = to_state
+	
+		p_L = p_L + p_state
+
+	return p_L
+
 def compute_eM_transition_matrix(machine_fname, axs, inf_alg):
 	"""
 	Given an epsilon-machine compute_transition_matrix returns
@@ -4199,3 +4388,79 @@ def compute_output_transition_matrix(machine_fname, transducer_fname, axs, ays, 
 							P[ay][T_offset_to + M_offset_to, T_offset_from + M_offset_from] += pT_to*pM_to
 	
 	return P, T_states_to_index, M_states_to_index, T_trans, M_trans
+
+def simulate_eM(N, machine_fname, axs, inf_alg, M_states_to_index = None, M_trans = None, stationary_dist_eM = None):
+	"""
+	Lorem ipsum.
+
+	Parameters
+	----------
+	N : int
+			The desired length of the simulated time series.
+	machine_fname : string
+			The path to the epsilon-machine in dot format.
+	axs : list
+			The process alphabet.
+	inf_alg : string
+			The inference algorithm used to estimate the machine.
+			One of {'CSSR', 'transCSSR'}
+
+	Returns
+	-------
+	X : str
+			The simulated time series from the provided eM
+			as a string.
+
+	Notes
+	-----
+	Any notes go here.
+
+	Examples
+	--------
+	>>> import module_name
+	>>> # Demonstrate code here.
+
+	"""
+	
+	X = ''
+	
+	if stationary_dist_eM == None:
+		P, M_states_to_index, M_trans = compute_eM_transition_matrix(machine_fname, axs, inf_alg = inf_alg)
+
+		stationary_dist_mixed, stationary_dist_eM = compute_channel_states_distribution(P, {'A' : 0}, M_states_to_index)
+	
+	M_index_to_states = {}
+	
+	for state in M_states_to_index.keys():
+		M_index_to_states[M_states_to_index[state]] = state
+	
+	stationary_cum_dist_eM = numpy.cumsum([0.] + stationary_dist_eM)
+
+	u = numpy.random.rand(1)
+
+	for i in range(len(stationary_dist_eM)):
+		if u > stationary_cum_dist_eM[i] and u <= stationary_cum_dist_eM[i+1]:
+			S0 = M_index_to_states[i]
+			break
+
+	for t in range(N):
+		trans_dist = [0 for tmp in range(len(axs))]
+		
+		for ax_ind, ax in enumerate(axs):
+			S1, p = M_trans.get((S0, ax), (None, 0.))
+			
+			trans_dist[ax_ind] = p
+			
+		trans_cum_dist = numpy.cumsum([0.] + trans_dist)
+		
+		u = numpy.random.rand(1)
+
+		for i in range(len(axs)):
+			if u > trans_cum_dist[i] and u <= trans_cum_dist[i+1]:
+				X1 = axs[i]
+		
+		S0, p = M_trans[(S0, X1)]
+		
+		X += X1
+	
+	return X
