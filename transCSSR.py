@@ -2743,7 +2743,7 @@ def run_transCSSR_memoryless(word_lookup_marg, word_lookup_fut, L_max, axs, ays,
 	
 	return epsilon, invepsilon, morph_by_state
 
-def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L, prior_pred = 0.5, memoryless = False):
+def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L, prior_pred = None, memoryless = False):
 	"""
 	Given a realization from an input/output process
 	and an epsilon-transducer for that process, 
@@ -2777,9 +2777,9 @@ def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, ax
 	L : int
 			The maximum history length to use in filtering
 			the input/output process.
-	prior_pred : float
-			The prior probability assigned to seeing a 1.
-			This allows for 'blind' prediction when
+	prior_pred : array
+			The prior probability assigned to each value
+			in ays. This allows for 'blind' prediction when
 			the current causal state is unknown because
 			of a failure to synchronize.
 	memoryless : bool
@@ -2792,9 +2792,9 @@ def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, ax
 	filtered_states : list
 			The causal state sequence filtered
 			from the input/output process.
-	filtered_probs : list
-			The probability that the output process
-			emits a 1, given the current causal state.
+	filtered_probs : array
+			The predictive distribution over ays,
+			given the current causal state.
 	stringY_pred : str
 			The predicted values of the output process,
 			chosen to maximize the accurracy.
@@ -2809,6 +2809,21 @@ def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, ax
 	>>> # Demonstrate code here.
 
 	"""
+
+	# When no prior probability is provided,
+	# assume all outputs are equi-probable.
+
+	if prior_pred is None:
+		prior_pred = numpy.ones(len(ays))/float(len(ays))
+
+	# NOTE: When all outputs are equiprobable, will 
+	# default to predicting ays[0].
+
+	# Store the predictive probabilities
+	# 	P(Y_{t} = y | S_{t - 1})
+	# in a T x |Y| array.
+
+	filtered_probs = numpy.zeros((len(stringY), len(ays)))
 	
 	prob_by_state = {}
 
@@ -2865,30 +2880,27 @@ def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, ax
 	
 		s0 = s1
 	
-	if prior_pred < 0.5:
-		Y_pred = ['0']
-	else:
-		Y_pred = ['1']
-	filtered_probs = [prior_pred]
+	Y_pred = [ays[numpy.argmax(prior_pred)]]
 
-	for state in filtered_states:
+	filtered_probs[0, :] = prior_pred
+
+	for time_offset in range(1, len(filtered_states)):
+		state = filtered_states[time_offset-1]
 		if state == -1:
-			if prior_pred < 0.5:
-				y = '0'
-			else:
-				y = '1'
+			y = ays[numpy.argmax(prior_pred)]
 			p = prior_pred
 		else:
-			y = str(ays[numpy.argmax(prob_by_state[state])])
-			p = prob_by_state[state][1]
+			y = ays[numpy.argmax(prob_by_state[state])]
+			p = prob_by_state[state]
 			
 		Y_pred.append(y)
-		filtered_probs.append(p)
+		filtered_probs[time_offset, :] = p
 
 	stringY_pred = ''.join(Y_pred)
 	
 	return filtered_states, filtered_probs, stringY_pred
-def run_tests_transCSSR(fnameX, fnameY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L, L_max = None, metric = None, memoryless = False, verbose = True, prior_pred = 0.5):
+
+def run_tests_transCSSR(fnameX, fnameY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L, L_max = None, metric = None, memoryless = False, verbose = True, prior_pred = None):
 	"""
 	Run various predictive tests (accuracy, precision, recall, 
 	F-score, empirical total variation distance)  on the 
@@ -2963,6 +2975,15 @@ def run_tests_transCSSR(fnameX, fnameY, epsilon, invepsilon, morph_by_state, axs
 	# NOTE: The filename should *already have* the suffix
 	# '-tune', '-test', etc.
 	
+	# When no prior probability is provided,
+	# assume all outputs are equi-probable.
+
+	if prior_pred is None:
+		prior_pred = numpy.ones(len(ays))/float(len(ays))
+
+	# NOTE: When all outputs are equiprobable, will 
+	# default to predicting ays[0].
+
 	# If a maximum L wasn't passed (i.e. we're not trying to 
 	# compare CSMs on the same timeseries data), assume that
 	# we want to use *all* of the timeseries in our test.
@@ -3010,7 +3031,7 @@ def run_tests_transCSSR(fnameX, fnameY, epsilon, invepsilon, morph_by_state, axs
 												 	 # regardless of L. Otherwise we 
 												 	 # might artificially inflate the
 												 	 # accuracy rate for large L CSMs.		
-		predict_probs = predict_probs[L_max:]
+		predict_probs = predict_probs[L_max:, ]
 		# For a given L, compute the metric rate on the tuning set.
 		# Allowed metrics are 'accuracy', 'precision', 'recall', 'F'.
 		

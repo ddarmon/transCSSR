@@ -73,7 +73,7 @@ else:
 #
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# axs = ['0', '1']
+# axs = ['0']
 # ays = ['0', '1']
 
 axs = ['0', '1']
@@ -104,4 +104,19 @@ print 'The epsilon-transducer has {} states.'.format(len(invepsilon))
 
 print_morph_by_states(morph_by_state)
 
-filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max)
+prior_pred = [word_lookup_fut[('', ay)] for ay in ays]
+
+prior_pred = numpy.array(prior_pred)/float(numpy.sum(prior_pred))
+
+print '\nDemonstration of filtering...\n'
+
+filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max, prior_pred)
+
+print 't\tS_\{t\}\tP(Y_\{t\} | S_\{t-1\})\that(Y)_\{t\}\tY_\{t\}'
+print '-----------------------------------------------------------'
+
+
+for t in range(100):
+	print t, filtered_states[t], filtered_probs[t, :], stringY_pred[t], stringY[t]
+
+test_out = run_tests_transCSSR('data/{}{}'.format(data_prefix, Xt_name), 'data/{}{}'.format(data_prefix, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L = L_max, L_max = L_max, metric = None, memoryless = False, verbose = True, prior_pred = prior_pred)
