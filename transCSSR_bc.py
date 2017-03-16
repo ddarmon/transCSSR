@@ -2168,8 +2168,8 @@ def compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, i
 	# input process epsilon-machine and the
 	# epsilon-transducer.
 
-	T_trans, T_states = load_transition_matrix_transducer('/Users/daviddarmon/Dropbox/transfer/orc-wordmap/{}'.format(transducer_name))
-	M_trans, M_states = load_transition_matrix_machine('/Users/daviddarmon/Dropbox/transfer/orc-wordmap/{}'.format(machine_name), inf_alg)
+	T_trans, T_states = load_transition_matrix_transducer('{}'.format(transducer_fname))
+	M_trans, M_states = load_transition_matrix_machine('{}'.format(machine_fname), inf_alg)
 
 	# Determine the number of states resulting from a
 	# direct product of the epsilon-machine and
@@ -2244,7 +2244,7 @@ def compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, i
 				
 							P[T_offset_to + M_offset_to, T_offset_from + M_offset_from] += pT_to*pM_to
 	
-	return P, T_states_to_index, M_states_to_index
+	return P, T_states_to_index, M_states_to_index, T_trans, M_trans
 
 def compute_channel_states_distribution(P, M_states, T_states):
 	"""

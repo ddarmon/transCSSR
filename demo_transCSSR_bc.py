@@ -100,7 +100,10 @@ else:
 #
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-axs = ['0', '1']
+# axs = ['0', '1']
+# ays = ['0', '1']
+
+axs = ['0']
 ays = ['0', '1']
 
 e_symbols = list(itertools.product(axs, ays)) # All of the possible pairs of emission
