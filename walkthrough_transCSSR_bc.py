@@ -150,7 +150,7 @@ T = Tx
 
 word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_max)
 
-epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, verbose = True)
+epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, verbose = True)
 
 print 'The epsilon-transducer has {} states.'.format(len(invepsilon))
 

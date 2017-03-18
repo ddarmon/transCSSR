@@ -109,8 +109,6 @@ ays = ['0', '1']
 e_symbols = list(itertools.product(axs, ays)) # All of the possible pairs of emission
                                               # symbols for (x, y)
 
-# The number of degrees of freedom associated with 
-
 alpha = 0.001
 
 verbose = False
@@ -127,7 +125,7 @@ T = Tx
 
 word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_max)
 
-epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, verbose = False)
+epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, verbose = False)
 
 print 'The epsilon-transducer has {} states.'.format(len(invepsilon))
 
