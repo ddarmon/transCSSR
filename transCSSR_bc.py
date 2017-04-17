@@ -17,6 +17,8 @@ from igraph import *
 
 from filter_data_methods import *
 
+import ipdb
+
 def chisquared_test(morph1, morph2, axs, ays, alpha = 0.001, test_type = 'chi2'):
 	"""
 	Compare two predictive distributions (morph1 and morph2) to determine
@@ -82,7 +84,7 @@ def chisquared_test(morph1, morph2, axs, ays, alpha = 0.001, test_type = 'chi2')
 		df_x = 0
 		
 		array_morph1 = numpy.array(morph1); array_morph2 = numpy.array(morph2)
-		
+
 		for row_ind in range(len(axs)):
 			tmp_morph1 = array_morph1[row_ind*len(axs):row_ind*len(axs) + len(ays)]
 			tmp_morph2 = array_morph2[row_ind*len(axs):row_ind*len(axs) + len(ays)]

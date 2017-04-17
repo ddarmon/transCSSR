@@ -11,33 +11,17 @@ from igraph import *
 
 from transCSSR import *
 
-
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-#
-# The various test transducers. Xt is the input
-# and Yt is the output.
-#
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 data_prefix = ''
 
-Xt_name = ''
+Yt_name = '1mm'
+# Yt_name = 'even'
 
-# Yt_name = '1mm'
-Yt_name = 'even-exact'
-
-axs = ['0', '1']
 ays = ['0', '1']
 
-e_symbols = list(itertools.product(axs, ays)) # All of the possible pairs of emission
-                                              # symbols for (x, y)
 
-N = 10000
+N = 400
 
-X = simulate_eM(N, 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name), axs, 'transCSSR')
-open('simulation_outputs/{}+{}.dat'.format(Xt_name, Yt_name), 'w').write(X)
+Y = simulate_eM(N, 'transCSSR_results/+{}.dot'.format(Yt_name), ays, 'transCSSR')
 
-measures = compute_conditional_measures('transCSSR_results/+null.dot', 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name), axs, ays, inf_alg = 'transCSSR')
-
-print measures
+# Uncomment to save to the specified folder:
+open('simulation_outputs/{}_sim.dat'.format(Yt_name), 'w').write(Y)
