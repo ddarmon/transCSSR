@@ -115,7 +115,7 @@ verbose = False
 
 # L is the maximum amount we want to ever look back.
 
-L_max = 3
+L_max = 5
 
 Tx = len(stringX); Ty = len(stringY)
 
@@ -135,5 +135,5 @@ filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stri
 
 print 'Xt Yt \hat\{Y\}t St P(Yt = 1 | Xt, St)'
 
-for t_ind in range(100):
+for t_ind in range(int(numpy.min([100, len(stringX)]))):
 	print stringX[t_ind], stringY[t_ind], stringY_pred[t_ind], filtered_states[t_ind], filtered_probs[t_ind]

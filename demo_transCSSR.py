@@ -115,8 +115,7 @@ filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stri
 print 't\tS_\{t\}\tP(Y_\{t\} | S_\{t-1\})\that(Y)_\{t\}\tY_\{t\}'
 print '-----------------------------------------------------------'
 
-
-for t in range(100):
-	print t, filtered_states[t], filtered_probs[t, :], stringY_pred[t], stringY[t]
+for t_ind in range(int(numpy.min([100, len(stringX)]))):
+	print t, filtered_states[t_ind], filtered_probs[t_ind, :], stringY_pred[t_ind], stringY[t_ind]
 
 test_out = run_tests_transCSSR('data/{}{}'.format(data_prefix, Xt_name), 'data/{}{}'.format(data_prefix, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L = L_max, L_max = L_max, metric = None, memoryless = False, verbose = True, prior_pred = prior_pred)
