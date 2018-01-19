@@ -1,0 +1,19 @@
+State number: 0
+0, 0
+distribution: P(0) = 0.898497526415	P(1) = 0.101502473585	
+transitions: T((0, 0)) = 0	T((0, 1)) = 2	T((1, 0)) = 1	T((1, 1)) = 2	
+P(State) = ...
+
+State number: 1
+1, 0
+distribution: P(0) = 0.0494755276759	P(1) = 0.950524472324	
+transitions: T((0, 0)) = 0	T((0, 1)) = 2	T((1, 0)) = 1	T((1, 1)) = 2	
+P(State) = ...
+
+State number: 2
+0, 1
+1, 1
+distribution: P(0) = 1.0	P(1) = 0.0	
+transitions: T((0, 0)) = 0	T((0, 1)) = 2	T((1, 0)) = 1	T((1, 1)) = 2	
+P(State) = ...
+
