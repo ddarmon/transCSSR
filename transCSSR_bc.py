@@ -2780,7 +2780,7 @@ def predict_presynch_eT(stringX, stringY, machine_fname, transducer_fname, axs, 
 	"""
 	
 	if M_states_to_index == None or T_states_to_index == None or M_trans == None or T_trans == None or stationary_dist_mixed == None or stationary_dist_eT == None: # Only recompute these if we need to.
-		P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg = 'CSSR')
+		P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg)
 		
 		T_states = T_states_to_index.keys()
 		M_states = M_states_to_index.keys()
