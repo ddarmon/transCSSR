@@ -11,6 +11,8 @@ from igraph import *
 
 from transCSSR_bc import *
 
+import ipdb
+
 data_prefix = ''
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -48,8 +50,14 @@ data_prefix = ''
 #
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-Xt_name = 'barnettX'
-Yt_name = 'barnettY'
+# Xt_name = 'barnettX'
+# Yt_name = 'barnettY'
+
+# Xt_name = ''
+# Yt_name = 'even'
+
+Xt_name = 'coinflip'
+Yt_name = 'coinflip-excite_w_refrac'
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #
@@ -104,10 +112,36 @@ word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, s
 
 epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, verbose = False)
 
-for cur_ind in range(1, 10):
+ind_go_to = 20
+
+possible_states_from_predict_presynch_eT = numpy.zeros((ind_go_to-1, len(invepsilon)), dtype = numpy.int32)
+
+for cur_ind in range(1, ind_go_to):
 	curX = stringX[:cur_ind]
 	curY = stringY[:cur_ind-1]
 
 	preds, possible_states = predict_presynch_eT(curX, curY, machine_fname = 'transCSSR_results/+{}.dot'.format(Xt_name), transducer_fname = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name), axs = axs, ays = ays, inf_alg = 'transCSSR')
 
-	print(curX, curY, preds, possible_states)
+	possible_states_from_predict_presynch_eT[cur_ind - 1] = possible_states
+
+	print(cur_ind, curX, curY + '*', preds.tolist(), possible_states)
+
+print('')
+
+preds_all, possible_states_all = filter_and_probs_v2(stringX, stringY, machine_fname = 'transCSSR_results/+{}.dot'.format(Xt_name), transducer_fname = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name), axs = axs, ays = ays, inf_alg = 'transCSSR')
+
+for cur_ind in range(1, ind_go_to):
+	curX = stringX[:cur_ind]
+	curY = stringY[:cur_ind-1]
+
+	print(cur_ind, curX, curY + '*', preds_all[cur_ind-1, :].tolist(), possible_states_all[cur_ind-1, :].tolist())
+
+filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max, memoryless = False)
+
+for ind in range(ind_go_to):
+	print(filtered_probs[ind], preds_all[ind, 1])
+
+# import matplotlib.pyplot as plt
+
+# plt.plot(preds_all[:, 0])
+# plt.show()

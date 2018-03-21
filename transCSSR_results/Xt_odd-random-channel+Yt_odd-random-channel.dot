@@ -11,5 +11,5 @@ graph [fontname = "CMU Serif Roman"];
 edge [fontname = "CMU Serif Roman"];
 A -> A [label = "0|0:1.0\l"];
 A -> B [label = "1|1:1.0\l"];
-B -> A [label = "0|0:0.497\l0|1:0.502\l1|0:0.503\l1|1:0.498\l"];
+B -> A [label = "0|0:0.497\l0|1:0.501\l1|0:0.503\l1|1:0.499\l"];
 }
