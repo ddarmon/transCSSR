@@ -20,32 +20,11 @@ data_prefix = ''
 #
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# Yt_name = 'coinflip_through_even'
-# Yt_name = 'coinflip_through_evenflip'
-# Yt_name = 'coinflip_through_periodickick'
-# Yt_name = 'coinflip_through_periodicevenkick'
-# Yt_name = 'even_through_even'
-# Yt_name = 'even'
-# Yt_name = 'rip'
-# Yt_name = 'rip-rev'
-# Yt_name = 'even-excite_w_refrac'
-# Yt_name = 'coinflip-excite_w_refrac'
-# Yt_name = 'coinflip'
-# Yt_name = 'period4'
-# Yt_name = 'golden-mean'
-# Yt_name = 'golden-mean-rev'
-# Yt_name = 'complex-csm'
-# Yt_name = 'tricoin_through_singh-machine'
-# Yt_name = 'coinflip_through_floatreset'
+Xt_name = 'coinflip'
+Yt_name = 'coinflip-excite_w_refrac'
 
-# Xt_name = 'coinflip'
-# Xt_name = 'even'
-# Xt_name = ''
-# Xt_name = 'even-excite_w_refrac'
-# Xt_name = 'tricoin'
-
-Xt_name = 'barnettX'
-Yt_name = 'barnettY'
+# Xt_name = 'barnettX'
+# Yt_name = 'barnettY'
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #
@@ -100,7 +79,7 @@ word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, s
 
 epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha)
 
-for cur_ind in range(1, 10):
+for cur_ind in range(1, 20):
 	curX = stringX[:cur_ind]
 	curY = stringY[:cur_ind-1]
 
