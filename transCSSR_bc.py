@@ -2729,7 +2729,7 @@ def compute_eM_transition_matrix(machine_fname, axs, inf_alg):
 	
 	return P, M_states_to_index, M_trans
 
-def predict_presynch_eT(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg, M_states_to_index = None, T_states_to_index = None, M_trans = None, T_trans = None, stationary_dist_mixed = None, stationary_dist_eT = None):
+def predict_presynch_eT_legacy(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg, M_states_to_index = None, T_states_to_index = None, M_trans = None, T_trans = None, stationary_dist_mixed = None, stationary_dist_eT = None):
 	"""
 	Given an epsilon-machine for the input process, an
 	epsilon-transducer for the input-output process, 
@@ -2884,6 +2884,144 @@ def predict_presynch_eT(stringX, stringY, machine_fname, transducer_fname, axs, 
 		else:
 			return (numpy.array(p_joint_string_Lp1) / p_input_string_Lp1)/(p_joint_string_L / p_input_string_L), cur_states
 
+def predict_presynch_eT(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg, M_states_to_index = None, T_states_to_index = None, M_trans = None, T_trans = None, stationary_dist_mixed = None, stationary_dist_eT = None):
+	"""
+	Given an epsilon-machine for the input process, an
+	epsilon-transducer for the input-output process, 
+	an input past stringX, and an output past stringY,
+	predict_presynch_eT returns the predictive distribution
+		P(Yt = y | Xt = stringX[-1], Xpast = stringX, Ypast = stringY)
+	potentially *before* filtering on the past synchronizes to
+	one causal state.
+
+	Parameters
+	----------
+	stringX : string
+			The input past, including the present.
+	stringY : string
+			The output past, not including the present.
+	machine_fname : string
+			The path to the epsilon-machine in dot format.
+	transducer_fname : string
+			The path to the epsilon-transducer in dot format.
+	axs : list
+			The input process alphabet.
+	ays : list
+			The output process alphabet.
+	inf_alg : string
+			The inference algorithm used to estimate the machine.
+			One of {'CSSR', 'transCSSR'}
+
+	Returns
+	-------
+	pred_probs : numpy array
+			The probability of the ays, given
+			stringX and stringY.
+	cur_states : list
+			The current causal states the process could
+			be in, given stringX and stringY.
+
+	Notes
+	-----
+	Any notes go here.
+
+	Examples
+	--------
+	>>> import module_name
+	>>> # Demonstrate code here.
+
+	"""
+	
+	if M_states_to_index == None or T_states_to_index == None or M_trans == None or T_trans == None or stationary_dist_mixed == None or stationary_dist_eT == None: # Only recompute these if we need to.
+		P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg = inf_alg)
+		
+		T_states = T_states_to_index.keys()
+		M_states = M_states_to_index.keys()
+		
+		stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
+	else:
+		T_states = T_states_to_index.keys()
+		M_states = M_states_to_index.keys()
+
+	# Compute finite-L predictive probabilities:
+	# 
+	# P(Y_{L+1} = y_{L+1} | X_{L+1} = x_{L+1}, X_{1}^{L} = x_{1}^{L}, Y_{1}^{L} = y_{1}^{L})
+
+	p_joint_string_Lp1 = [0. for y in ays]
+	
+	cur_states = [0 for state in T_states]
+
+	for start_state_index in range(len(M_states)*len(T_states)):
+		if stationary_dist_mixed[start_state_index] > 0.: # A mixed state that occurs with non-zero probability.
+			T_start_state = T_states[int(numpy.floor(start_state_index/float(len(M_states))))]
+			M_start_state = M_states[int(start_state_index - numpy.floor(start_state_index/float(len(M_states)))*len(M_states))]
+	
+			# Compute P(Y_{1}^{L} | X_{1}^{L}, S_{0}) and
+			# P(X_{1}^{L} | S_{0})
+	
+			p_eT = 1.
+			p_eM = 1.
+	
+			T_state_from = T_start_state
+			M_state_from = M_start_state
+	
+			for t in range(len(stringX)-1):
+				x = stringX[t]
+				y = stringY[t]
+		
+				T_state_to, pT_to = T_trans.get((T_state_from, x, y), (None, 0))
+		
+				if pT_to == 0:
+					p_eT = 0.
+				else:
+					p_eT = p_eT * pT_to
+		
+				T_state_from = T_state_to
+		
+				M_state_to, pM_to = M_trans.get((M_state_from, x), (None, 0))
+
+				if pM_to == 0:
+					p_eM = 0.
+					break
+				else:
+					p_eM = p_eM * pM_to
+		
+				M_state_from = M_state_to
+			
+			if len(stringY) == 0:
+				cur_states[T_states_to_index[T_state_from]] = 1
+			else:
+				if p_eT != 0 and p_eM != 0:
+					cur_states[T_states_to_index[T_state_to]] = 1
+		
+			for ay_ind, ay in enumerate(ays):
+				x = stringX[-1]
+				y = ay
+			
+				T_state_to, pT_to = T_trans.get((T_state_from, x, y), (None, 0))
+		
+				if pT_to == 0:
+					p_eT_new = 0.
+				else:
+					p_eT_new = p_eT * pT_to
+		
+				M_state_to, pM_to = M_trans.get((M_state_from, x), (None, 0))
+		
+				if pM_to == 0:
+					p_eM_new = 0.
+					break
+				else:
+					p_eM_new = p_eM * pM_to
+		
+				p_joint_string_Lp1[ay_ind] += p_eT_new*p_eM_new*stationary_dist_mixed[start_state_index]
+
+	if numpy.sum(p_joint_string_Lp1) == 0.:
+		# print 'This input/output pair is not allowed by the transducer.'
+	
+		return numpy.array([numpy.nan for y in ays]), cur_states
+	else:
+		return numpy.array(p_joint_string_Lp1)/numpy.sum(p_joint_string_Lp1), cur_states
+
 def compute_output_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg):
 	"""
 	Given an epsilon-machine for the input process and an epsilon-transducer
@@ -3017,7 +3155,7 @@ def compute_output_transition_matrix(machine_fname, transducer_fname, axs, ays, 
 	
 	return P, T_states_to_index, M_states_to_index, T_trans, M_trans
 
-def filter_and_probs(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg, M_states_to_index = None, T_states_to_index = None, M_trans = None, T_trans = None, stationary_dist_mixed = None, stationary_dist_eT = None):
+def filter_and_pred_probs_nonsynch(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg, M_states_to_index = None, T_states_to_index = None, M_trans = None, T_trans = None, stationary_dist_mixed = None, stationary_dist_eT = None):
 	"""
 	Given an epsilon-machine for the input process, an
 	epsilon-transducer for the input-output process, 
@@ -3196,7 +3334,7 @@ def filter_and_probs(stringX, stringY, machine_fname, transducer_fname, axs, ays
 
 	return pred_probs_by_time, cur_states_by_time
 
-def filter_and_probs_v2(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg, M_states_to_index = None, T_states_to_index = None, M_trans = None, T_trans = None, stationary_dist_mixed = None, stationary_dist_eT = None):
+def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg, M_states_to_index = None, T_states_to_index = None, M_trans = None, T_trans = None, stationary_dist_mixed = None, stationary_dist_eT = None):
 	"""
 	Given an epsilon-machine for the input process, an
 	epsilon-transducer for the input-output process, 

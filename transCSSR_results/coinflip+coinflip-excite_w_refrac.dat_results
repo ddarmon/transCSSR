@@ -15,11 +15,7 @@ State number: 0
 110, 000
 110, 010
 110, 100
-distribution: 
-P(0|0,state) = 0.899468997631	
-P(1|0,state) = 0.100531002369	
-P(0|1,state) = 0.897531751154	
-P(1|1,state) = 0.102468248846	
+distribution: P(0) = 0.898497319769	P(1) = 0.101502680231	
 transitions: T((0, 0)) = 0	T((0, 1)) = 2	T((1, 0)) = 1	T((1, 1)) = 2	
 P(State) = ...
 
@@ -40,11 +36,7 @@ State number: 1
 111, 000
 111, 010
 111, 100
-distribution: 
-P(0|0,state) = 0.0493536583873	
-P(1|0,state) = 0.950646341613	
-P(0|1,state) = 0.0495971373628	
-P(1|1,state) = 0.950402862637	
+distribution: P(0) = 0.0494757289453	P(1) = 0.950524271055	
 transitions: T((0, 0)) = 0	T((0, 1)) = 2	T((1, 0)) = 1	T((1, 1)) = 2	
 P(State) = ...
 
@@ -69,11 +61,7 @@ State number: 2
 110, 101
 111, 001
 111, 101
-distribution: 
-P(0|0,state) = 1.0	
-P(1|0,state) = 0.0	
-P(0|1,state) = 1.0	
-P(1|1,state) = 0.0	
+distribution: P(0) = 1.0	P(1) = 0.0	
 transitions: T((0, 0)) = 0	T((0, 1)) = NULL	T((1, 0)) = 1	T((1, 1)) = NULL	
 P(State) = ...
 

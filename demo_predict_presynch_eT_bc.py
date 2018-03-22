@@ -50,14 +50,14 @@ data_prefix = ''
 #
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# Xt_name = 'barnettX'
-# Yt_name = 'barnettY'
+Xt_name = 'barnettX'
+Yt_name = 'barnettY'
 
 # Xt_name = ''
 # Yt_name = 'even'
 
-Xt_name = 'coinflip'
-Yt_name = 'coinflip-excite_w_refrac'
+# Xt_name = 'coinflip'
+# Yt_name = 'coinflip-excite_w_refrac'
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #
@@ -128,7 +128,7 @@ for cur_ind in range(1, ind_go_to):
 
 print('')
 
-preds_all, possible_states_all = filter_and_probs_v2(stringX, stringY, machine_fname = 'transCSSR_results/+{}.dot'.format(Xt_name), transducer_fname = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name), axs = axs, ays = ays, inf_alg = 'transCSSR')
+preds_all, possible_states_all = filter_and_pred_probs(stringX, stringY, machine_fname = 'transCSSR_results/+{}.dot'.format(Xt_name), transducer_fname = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name), axs = axs, ays = ays, inf_alg = 'transCSSR')
 
 for cur_ind in range(1, ind_go_to):
 	curX = stringX[:cur_ind]
