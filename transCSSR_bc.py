@@ -2291,7 +2291,7 @@ def compute_channel_states_distribution(P, M_states, T_states):
 	# that is a scalar multiple of the mixed chains
 	# stationary distribution.
 
-	eig_one = numpy.where(numpy.abs(L - 1) < 0.0001)[0][0]
+	eig_one = numpy.argmin(numpy.abs(L - 1))
 
 	stationary_dist_mixed = numpy.real(V[:, eig_one])
 
@@ -3154,6 +3154,166 @@ def compute_output_transition_matrix(machine_fname, transducer_fname, axs, ays, 
 							P[ay][T_offset_to + M_offset_to, T_offset_from + M_offset_from] += pT_to*pM_to
 	
 	return P, T_states_to_index, M_states_to_index, T_trans, M_trans
+
+def simulate_eM(N, machine_fname, axs, inf_alg, initial_state = None, M_states_to_index = None, M_trans = None, stationary_dist_eM = None):
+	"""
+	Lorem ipsum.
+
+	Parameters
+	----------
+	N : int
+			The desired length of the simulated time series.
+	machine_fname : string
+			The path to the epsilon-machine in dot format.
+	axs : list
+			The process alphabet.
+	inf_alg : string
+			The inference algorithm used to estimate the machine.
+			One of {'CSSR', 'transCSSR'}
+
+	Returns
+	-------
+	X : str
+			The simulated time series from the provided eM
+			as a string.
+
+	Notes
+	-----
+	Any notes go here.
+
+	Examples
+	--------
+	>>> import module_name
+	>>> # Demonstrate code here.
+
+	"""
+	
+	X = ''
+	
+	if stationary_dist_eM == None:
+		P, M_states_to_index, M_trans = compute_eM_transition_matrix(machine_fname, axs, inf_alg = inf_alg)
+
+		stationary_dist_mixed, stationary_dist_eM = compute_channel_states_distribution(P, {'A' : 0}, M_states_to_index)
+	
+	M_index_to_states = {}
+	
+	for state in M_states_to_index.keys():
+		M_index_to_states[M_states_to_index[state]] = state
+	
+	stationary_cum_dist_eM = numpy.cumsum([0.] + stationary_dist_eM)
+
+	if initial_state is None:
+		u = numpy.random.rand(1)
+
+		for i in range(len(stationary_dist_eM)):
+			if u > stationary_cum_dist_eM[i] and u <= stationary_cum_dist_eM[i+1]:
+				S0 = M_index_to_states[i]
+				break
+	else:
+		S0 = initial_state
+
+	for t in range(N):
+		trans_dist = [0 for tmp in range(len(axs))]
+		
+		for ax_ind, ax in enumerate(axs):
+			S1, p = M_trans.get((S0, ax), (None, 0.))
+			
+			trans_dist[ax_ind] = p
+			
+		trans_cum_dist = numpy.cumsum([0.] + trans_dist)
+		
+		u = numpy.random.rand(1)
+
+		for i in range(len(axs)):
+			if u > trans_cum_dist[i] and u <= trans_cum_dist[i+1]:
+				X1 = axs[i]
+		
+		S0, p = M_trans[(S0, X1)]
+		
+		X += X1
+	
+	return X
+
+def simulate_eT(N, machine_fname, transducer_fname, X, axs, ays, inf_alg, initial_state = None):
+	"""
+	Lorem ipsum.
+
+	Parameters
+	----------
+	N : int
+			The desired length of the simulated time series.
+	machine_fname : string
+			The path to the epsilon-machine in dot format.
+	axs : list
+			The process alphabet.
+	inf_alg : string
+			The inference algorithm used to estimate the machine.
+			One of {'CSSR', 'transCSSR'}
+
+	Returns
+	-------
+	X : str
+			The simulated time series from the provided eM
+			as a string.
+
+	Notes
+	-----
+	Any notes go here.
+
+	Examples
+	--------
+	>>> import module_name
+	>>> # Demonstrate code here.
+
+	"""
+	
+	Y = ''
+	
+	P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg)
+	
+	T_states = T_states_to_index.keys()
+	M_states = M_states_to_index.keys()
+	
+	stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
+	
+	T_index_to_states = {}
+	
+	for state in T_states_to_index.keys():
+		T_index_to_states[T_states_to_index[state]] = state
+	
+	stationary_cum_dist_eT = numpy.cumsum([0.] + stationary_dist_eT)
+
+	if initial_state is None:
+		u = numpy.random.rand(1)
+
+		for i in range(len(stationary_dist_eT)):
+			if u > stationary_cum_dist_eT[i] and u <= stationary_cum_dist_eT[i+1]:
+				S0 = T_index_to_states[i]
+				break
+	else:
+		S0 = initial_state
+
+	for t in range(N):
+		trans_dist = [0 for tmp in range(len(ays))]
+		
+		for ay_ind, ay in enumerate(ays):
+			S1, p = T_trans.get((S0, X[t], ay), (None, 0.))
+			
+			trans_dist[ay_ind] = p
+			
+		trans_cum_dist = numpy.cumsum([0.] + trans_dist)
+		
+		u = numpy.random.rand(1)
+
+		for i in range(len(ays)):
+			if u > trans_cum_dist[i] and u <= trans_cum_dist[i+1]:
+				Y1 = ays[i]
+		
+		S0, p = T_trans[(S0, X[t], Y1)]
+		
+		Y += Y1
+	
+	return Y
 
 def filter_and_pred_probs_nonsynch(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg, M_states_to_index = None, T_states_to_index = None, M_trans = None, T_trans = None, stationary_dist_mixed = None, stationary_dist_eT = None):
 	"""

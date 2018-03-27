@@ -4559,7 +4559,7 @@ def compute_output_transition_matrix(machine_fname, transducer_fname, axs, ays, 
 	
 	return P, T_states_to_index, M_states_to_index, T_trans, M_trans
 
-def simulate_eM(N, machine_fname, axs, inf_alg, M_states_to_index = None, M_trans = None, stationary_dist_eM = None):
+def simulate_eM(N, machine_fname, axs, inf_alg, initial_state = None, M_states_to_index = None, M_trans = None, stationary_dist_eM = None):
 	"""
 	Lorem ipsum.
 
@@ -4606,12 +4606,15 @@ def simulate_eM(N, machine_fname, axs, inf_alg, M_states_to_index = None, M_tran
 	
 	stationary_cum_dist_eM = numpy.cumsum([0.] + stationary_dist_eM)
 
-	u = numpy.random.rand(1)
+	if initial_state is None:
+		u = numpy.random.rand(1)
 
-	for i in range(len(stationary_dist_eM)):
-		if u > stationary_cum_dist_eM[i] and u <= stationary_cum_dist_eM[i+1]:
-			S0 = M_index_to_states[i]
-			break
+		for i in range(len(stationary_dist_eM)):
+			if u > stationary_cum_dist_eM[i] and u <= stationary_cum_dist_eM[i+1]:
+				S0 = M_index_to_states[i]
+				break
+	else:
+		S0 = initial_state
 
 	for t in range(N):
 		trans_dist = [0 for tmp in range(len(axs))]
