@@ -5031,3 +5031,41 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 		cur_states_by_time[t+1, T_states_to_index[T_state_from]] = 1
 
 	return pred_probs_by_time, cur_states_by_time
+
+def compute_mixed_state_matrix(machine_fname, axs, inf_alg, initial_state = None, M_states_to_index = None, M_trans = None, stationary_dist_eM = None):
+	"""
+	Lorem ipsum.
+
+	Parameters
+	----------
+	param : type
+
+	Returns
+	-------
+	param : type
+
+	Notes
+	-----
+	Any notes go here.
+
+	Examples
+	--------
+	>>> import module_name
+	>>> # Demonstrate code here.
+
+	"""
+	
+	if stationary_dist_eM == None:
+		P, M_states_to_index, M_trans = compute_eM_transition_matrix(machine_fname, axs, inf_alg = inf_alg)
+
+		stationary_dist_mixed, stationary_dist_eM = compute_channel_states_distribution(P, {'A' : 0}, M_states_to_index)
+	
+	M_index_to_states = {}
+	
+	for state in M_states_to_index.keys():
+		M_index_to_states[M_states_to_index[state]] = state
+			
+		for ax_ind, ax in enumerate(axs):
+			S1, p = M_trans.get((S0, ax), (None, 0.))
+	
+	return X
