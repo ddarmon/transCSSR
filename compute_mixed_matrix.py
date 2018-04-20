@@ -1,12 +1,17 @@
 from transCSSR import *
 
+import numpy
+import scipy
+
 import ipdb
 
 import matplotlib.pyplot as plt
 
-machine_fname = 'transCSSR_results/+even-exact.dot'
+# machine_fname = 'transCSSR_results/+even-exact.dot'
 # machine_fname = 'transCSSR_results/+golden-mean.dot'
-# machine_fname = 'transCSSR_results/+RnC.dot'
+# machine_fname = 'transCSSR_results/+barnettX.dot'
+machine_fname = 'transCSSR_results/+RnC.dot'
+# machine_fname = 'transCSSR_results/+RIP.dot'
 
 axs = ['0', '1']
 
@@ -76,14 +81,10 @@ while new_states:
 				else: # No new mixed state was generated.
 					pass
 
-			# print etas_new
-
 	etas_cur = etas_new[1:, :].copy()
 	etas_new = numpy.matrix([numpy.nan]*len(M_states_to_index))
 
-	# ipdb.set_trace()
-
-print etas_matrix
+print(etas_matrix)
 
 W_x = {}
 
@@ -119,38 +120,70 @@ for x in axs:
 # plt.figure()
 # plt.imshow(W)
 
-D, P = numpy.linalg.eig(W.T)
+D, Pl, Pr = scipy.linalg.eig(W, left = True, right = True)
+
+# This only works for eigenvalues that have algebraic multiplicity
+# of 1:
+
+# W_lam = {}
+
+# for eigval_ind, eigval in enumerate(D):
+# 	eig_right = numpy.matrix(Pr[:, eigval_ind])
+# 	eig_left  = numpy.matrix(Pl[:, eigval_ind])
+
+# 	print(eigval, eig_left.T*eig_right)
+
+# 	W_lam[eigval] = (eig_right.T*eig_left)/(eig_left*eig_right.T)
+
+# This only works when W is diagonalizable. (???)
+
+W_lam = {}
+
+Id = numpy.eye(D.shape[0])
+
+# Rounding here causes loss of precision in hmu and E
+D_unique = numpy.unique(D.round(decimals=10))
+# D_unique = D.copy()
+
+ind_eigval1 = numpy.isclose(D_unique, 1.0).nonzero()[0][0]
+
+for eigval_ind, eigval in enumerate(D_unique):
+	W_lam[eigval] = Id.copy()
+
+	for eigval2 in D_unique:
+		if eigval == eigval2:
+			pass
+		else:
+			# W_lam[eigval] = ((W - eigval2*Id)/(eigval - eigval2))*W_lam[eigval]
+			W_lam[eigval] = W_lam[eigval]*((W - eigval2*Id)/(eigval - eigval2))
 
 HWA = -numpy.nansum(numpy.multiply(numpy.log2(W),W), 1).T
 
-# Is = numpy.matrix(numpy.ones(etas_matrix.shape[0])).T
-# HWA = numpy.matrix(numpy.zeros(etas_matrix.shape[0]))
-
-# for mixed_ind in range(etas_matrix.shape[0]):
-# 	delta_eta = numpy.matrix(numpy.zeros(etas_matrix.shape[0]))
-# 	delta_eta[0, mixed_ind] = 1.
-
-# 	cur_sum = 0.
-
-# 	for x in axs:
-# 		p = delta_eta*W_x[x]*Is
-# 		if p == 0.:
-# 			pass
-# 		else:
-# 			cur_sum += p*numpy.log2(p)
-
-# 	HWA += delta_eta*float(cur_sum)
-
-# HWA = -HWA
-
 arg_eig_1 = (numpy.isclose(D, 1.)).nonzero()[0][0]
-v_eig_1   = P[:, arg_eig_1].T
-v_eig_1   = v_eig_1/numpy.sum(v_eig_1)
+v_eig_1   = Pl[:, arg_eig_1].T
+mixed_state_stationary_dist   = numpy.real(v_eig_1/numpy.sum(v_eig_1))
 
-hmu = v_eig_1*HWA.T
+plt.figure()
+plt.plot(mixed_state_stationary_dist.T, '.')
+
+hmu = float(mixed_state_stationary_dist*HWA.T)
 
 delta_eta = numpy.matrix(numpy.zeros(etas_matrix.shape[0]))
 delta_eta[0, 0] = 1.
+
+hmu2 = float(numpy.real(delta_eta*W_lam[D_unique[ind_eigval1]]*HWA.T))
+
+print('The entropy rates using the stationary distribution over the mixed states and W_{{1}} are:\n{}\n{}'.format(hmu, hmu2))
+
+E = 0.
+
+for eigval in D_unique:
+	if numpy.abs(eigval) < 1:
+		E += (delta_eta*W_lam[eigval]*HWA.T)/(1 - eigval)
+
+E = float(numpy.real(E))
+
+print('The Excess Entropy E is: {}'.format(E))
 
 Wprod = numpy.matrix(numpy.eye(etas_matrix.shape[0]))
 
@@ -158,15 +191,23 @@ hLs = []
 
 for L in range(25):
 	hLs.append(float(delta_eta*Wprod*HWA.T))
-	print(hLs[-1])
 
 	Wprod = Wprod*W
 
-print('\n')
-
-print(hmu)
-
+plt.figure()
 plt.plot(hLs)
 plt.axhline(hmu, linestyle = '--')
+
+
+def Hp(p):
+	x = numpy.array([p, 1 - p])
+
+	return -numpy.sum(x*numpy.log2(x))
+
+p = 0.5
+
+Hp(1/(2 - p)) - Hp(p)/(2 - p) # E for Golden Mean process
+
+numpy.log2(p + 2) - p*numpy.log2(p)/(p + 2) - (1 - p*(1-p))/(p+2)*Hp((1 - p)/(1 - p*(1 - p))) # E for RIP
 
 plt.show()
