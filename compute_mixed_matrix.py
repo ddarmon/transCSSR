@@ -4,9 +4,9 @@ import ipdb
 
 import matplotlib.pyplot as plt
 
-# machine_fname = 'transCSSR_results/+even-exact.dot'
+machine_fname = 'transCSSR_results/+even-exact.dot'
 # machine_fname = 'transCSSR_results/+golden-mean.dot'
-machine_fname = 'transCSSR_results/+RnC.dot'
+# machine_fname = 'transCSSR_results/+RnC.dot'
 
 axs = ['0', '1']
 
@@ -119,7 +119,7 @@ for x in axs:
 # plt.figure()
 # plt.imshow(W)
 
-D, P = numpy.linalg.eig(W)
+D, P = numpy.linalg.eig(W.T)
 
 HWA = -numpy.nansum(numpy.multiply(numpy.log2(W),W), 1).T
 
@@ -156,7 +156,7 @@ Wprod = numpy.matrix(numpy.eye(etas_matrix.shape[0]))
 
 hLs = []
 
-for L in range(100):
+for L in range(25):
 	hLs.append(float(delta_eta*Wprod*HWA.T))
 	print(hLs[-1])
 
@@ -167,5 +167,6 @@ print('\n')
 print(hmu)
 
 plt.plot(hLs)
+plt.axhline(hmu, linestyle = '--')
 
 plt.show()
