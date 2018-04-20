@@ -10,8 +10,10 @@ import matplotlib.pyplot as plt
 # machine_fname = 'transCSSR_results/+even-exact.dot'
 # machine_fname = 'transCSSR_results/+golden-mean.dot'
 # machine_fname = 'transCSSR_results/+barnettX.dot'
-machine_fname = 'transCSSR_results/+RnC.dot'
+# machine_fname = 'transCSSR_results/+RnC.dot'
 # machine_fname = 'transCSSR_results/+RIP.dot'
+# machine_fname = 'transCSSR_results/+complex-csm.dot'
+machine_fname = 'transCSSR_results/+renewal-process.dot'
 
 axs = ['0', '1']
 
@@ -111,6 +113,12 @@ W = numpy.matrix(numpy.zeros((etas_matrix.shape[0], etas_matrix.shape[0])))
 for x in axs:
 	W += W_x[x]
 
+row_sums = numpy.array(W.sum(1)).flatten()
+
+for row_ind in range(W.shape[0]):
+	W[row_ind, :] = W[row_ind, :]/row_sums[row_ind]
+
+
 # plt.figure()
 # plt.imshow(W_x['0'])
 
@@ -142,8 +150,8 @@ W_lam = {}
 Id = numpy.eye(D.shape[0])
 
 # Rounding here causes loss of precision in hmu and E
-D_unique = numpy.unique(D.round(decimals=10))
-# D_unique = D.copy()
+# D_unique = numpy.unique(D.round(decimals=10))
+D_unique = D.copy()
 
 ind_eigval1 = numpy.isclose(D_unique, 1.0).nonzero()[0][0]
 
@@ -183,20 +191,28 @@ for eigval in D_unique:
 
 E = float(numpy.real(E))
 
-print('The Excess Entropy E is: {}'.format(E))
-
 Wprod = numpy.matrix(numpy.eye(etas_matrix.shape[0]))
 
 hLs = []
 
-for L in range(25):
+L_max = 50
+
+for L in range(L_max):
 	hLs.append(float(delta_eta*Wprod*HWA.T))
 
 	Wprod = Wprod*W
 
-plt.figure()
-plt.plot(hLs)
-plt.axhline(hmu, linestyle = '--')
+hLs = numpy.array(hLs)
+
+ELs = numpy.cumsum(hLs - hmu)
+
+fig, ax = plt.subplots(2)
+ax[0].plot(hLs)
+ax[0].axhline(hmu, linestyle = '--')
+ax[1].plot(ELs)
+# ax[1].axhline(E, linestyle = '--')
+
+print('The Excess Entropy E is: {} ({})'.format(E, ELs[-1]))
 
 
 def Hp(p):
