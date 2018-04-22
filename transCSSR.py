@@ -3257,9 +3257,9 @@ def load_transition_matrix_machine(fname, inf_alg):
 				states[from_state] = True
 				states[to_state]   = True
 				
-				transitions = [line.split('\"')[1].split('\"')[0]]
+				transitions = line.split('\"')[1].split('\l')
 				
-				for transition in transitions:
+				for transition in transitions[:-1]:
 					if inf_alg == 'CSSR':
 						x = transition.split(':')[0]
 					elif inf_alg == 'transCSSR':

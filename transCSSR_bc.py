@@ -19,8 +19,6 @@ from igraph import *
 
 from filter_data_methods import *
 
-import ipdb
-
 def chisquared_test(morph1, morph2, axs, ays, alpha = 0.001, test_type = 'chi2'):
 	"""
 	Compare two predictive distributions (morph1 and morph2) to determine
@@ -2170,9 +2168,9 @@ def load_transition_matrix_machine(fname, inf_alg):
 				states[from_state] = True
 				states[to_state]   = True
 				
-				transitions = [line.split('\"')[1].split('\"')[0]]
+				transitions = line.split('\"')[1].split('\l')
 				
-				for transition in transitions:
+				for transition in transitions[:-1]:
 					if inf_alg == 'CSSR':
 						x = transition.split(':')[0]
 					elif inf_alg == 'transCSSR':
