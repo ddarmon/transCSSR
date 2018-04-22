@@ -1,0 +1,32 @@
+State number: 0
+00, 01
+distribution: 
+P(0|0,state) = 0.0	
+P(1|0,state) = 1.0	
+transitions: T((0, 0)) = 3	T((0, 1)) = 1	
+P(State) = ...
+
+State number: 1
+00, 11
+distribution: 
+P(0|0,state) = 1.0	
+P(1|0,state) = 0.0	
+transitions: T((0, 0)) = 3	T((0, 1)) = 1	
+P(State) = ...
+
+State number: 2
+00, 00
+distribution: 
+P(0|0,state) = 0.0	
+P(1|0,state) = 1.0	
+transitions: T((0, 0)) = 2	T((0, 1)) = 0	
+P(State) = ...
+
+State number: 3
+00, 10
+distribution: 
+P(0|0,state) = 1.0	
+P(1|0,state) = 0.0	
+transitions: T((0, 0)) = 2	T((0, 1)) = 0	
+P(State) = ...
+

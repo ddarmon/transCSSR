@@ -69,7 +69,6 @@ e_symbols = list(itertools.product(axs, ays)) # All of the possible pairs of emi
                                               # symbols for (x, y)
 
 alpha = 0.001
-# alpha = 1
 
 verbose = False
 

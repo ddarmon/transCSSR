@@ -8,6 +8,8 @@ import pylab
 from matplotlib import cm
 from matplotlib.colors import LinearSegmentedColormap
 
+import matplotlib.pyplot as plt
+
 # Dependencies: numpy, scipy, pandas, igraph, pylab, matplotlib
 
 import numpy
@@ -16,6 +18,8 @@ import pandas
 from igraph import *
 
 from filter_data_methods import *
+
+import ipdb
 
 def chisquared_test(morph1, morph2, axs, ays, alpha = 0.001, test_type = 'chi2'):
 	"""
@@ -2047,6 +2051,74 @@ def load_transition_matrix_transducer(fname):
 					trans_matrix[(from_state, x, y)] = (to_state, p)
 	return trans_matrix, states.keys()
 
+# def load_transition_matrix_machine(fname, inf_alg):
+# 	"""
+# 	Load the transition matrix for an epsilon-machine
+# 	stored in the .dot format.
+
+# 	Parameters
+# 	----------
+# 	fname : string
+# 			The filename (including the path) for a
+# 			dot file that stores the epsilon-machine.
+# 	inf_alg : string
+# 			The inference algorithm used to estimate the machine.
+# 			One of {'CSSR', 'transCSSR'}
+
+# 	Returns
+# 	-------
+# 	trans_matrix : dictionary
+# 			A lookup that maps (from_state, x) to
+# 			(to_state, p). Thus, this applies the
+# 			transition dynamic on seeing x in
+# 			state from_state to determine to_state,
+# 			and also returns
+# 			P(S_{1}, X_{1} | S_{0}).
+# 	states : list
+# 			A list storing the names of the states in
+# 			the dot file.
+	
+# 	Notes
+# 	-----
+# 	Any notes go here.
+
+# 	Examples
+# 	--------
+# 	>>> import module_name
+# 	>>> # Demonstrate code here.
+
+# 	"""
+	
+# 	trans_matrix = {}
+	
+# 	states = {}
+	
+# 	with open(fname) as ofile:
+# 		for line in ofile:
+# 			if '->' in line:
+# 				from_state = line.split(' -> ')[0]
+# 				to_state   = line.split(' -> ')[1].split(' [')[0]
+				
+# 				states[from_state] = True
+# 				states[to_state]   = True
+				
+# 				transitions = line.split('\"')[1].split('\l')
+				
+# 				for transition in transitions[:-1]:
+# 					if inf_alg == 'CSSR':
+# 						x = transition.split(':')[0]
+# 					elif inf_alg == 'transCSSR':
+# 						x = transition.split(':')[0].split('|')[0]
+					
+# 					if r'\l' in transition:
+# 						p = float(transition.split(':')[1].split(r'\l')[0])
+# 					else:
+# 						p = float(transition.split(':')[1].strip())
+					
+# 					trans_matrix[(from_state, x)] = (to_state, p)
+
+# 	return trans_matrix, states.keys()
+
 def load_transition_matrix_machine(fname, inf_alg):
 	"""
 	Load the transition matrix for an epsilon-machine
@@ -2098,9 +2170,9 @@ def load_transition_matrix_machine(fname, inf_alg):
 				states[from_state] = True
 				states[to_state]   = True
 				
-				transitions = line.split('\"')[1].split('\l')
+				transitions = [line.split('\"')[1].split('\"')[0]]
 				
-				for transition in transitions[:-1]:
+				for transition in transitions:
 					if inf_alg == 'CSSR':
 						x = transition.split(':')[0]
 					elif inf_alg == 'transCSSR':
@@ -2112,7 +2184,6 @@ def load_transition_matrix_machine(fname, inf_alg):
 						p = float(transition.split(':')[1].strip())
 					
 					trans_matrix[(from_state, x)] = (to_state, p)
-					
 	return trans_matrix, states.keys()
 
 def compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg):
@@ -2726,7 +2797,7 @@ def compute_eM_transition_matrix(machine_fname, axs, inf_alg):
 				M_offset_to = j_to
 			
 				P[M_offset_to, M_offset_from] += pM_to
-	
+
 	return P, M_states_to_index, M_trans
 
 def predict_presynch_eT_legacy(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg, M_states_to_index = None, T_states_to_index = None, M_trans = None, T_trans = None, stationary_dist_mixed = None, stationary_dist_eT = None):
@@ -3708,3 +3779,218 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 		cur_states_by_time[t+1, T_states_to_index[T_state_from]] = 1
 
 	return pred_probs_by_time, cur_states_by_time
+
+def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_states_to_index = None, M_trans = None, stationary_dist_eM = None):
+
+	if stationary_dist_eM == None:
+		P, M_states_to_index, M_trans = compute_eM_transition_matrix(machine_fname, axs, inf_alg = inf_alg)
+
+		stationary_dist_mixed, stationary_dist_eM = compute_channel_states_distribution(P, {'A' : 0}, M_states_to_index)
+
+	M_index_to_states = {}
+
+	for state in M_states_to_index:
+		M_index_to_states[M_states_to_index[state]] = state
+
+	eta = numpy.matrix(stationary_dist_eM)
+
+	Is = numpy.matrix(numpy.ones(len(M_states_to_index))).T
+
+	T_x = {}
+
+	for x_ind, x in enumerate(axs):
+		T_x[x] = numpy.matrix(numpy.zeros((len(M_states_to_index), len(M_states_to_index))))
+
+	for S0 in M_states_to_index:
+		for x in axs:
+			S1, p = M_trans.get((S0, x), (None, 0.0))
+
+			if S1 is not None:
+				T_x[x][M_states_to_index[S0], M_states_to_index[S1]] = p
+
+	new_states = True
+
+	etas_matrix = eta.copy()
+	etas_cur    = eta.copy()
+	etas_new = numpy.matrix([numpy.nan]*len(M_states_to_index))
+
+	diff_tol = 1e-10
+
+	while new_states:
+		new_states = False
+		for row_ind in range(etas_cur.shape[0]):
+			for x in axs:
+				new_states = True
+				eta = etas_cur[row_ind,:]
+
+				numer = eta*T_x[x]
+
+				# if numer*Is == 0.:
+				# 	eta[:] = numpy.nan
+				# else:
+				# 	eta = numer/(numer*Is)
+
+				eta = numer/(numer*Is)
+
+				if numpy.sum(numpy.isnan(eta)) != len(M_states_to_index):
+					# print(x, eta)
+
+					diff_dists = numpy.mean(numpy.abs(etas_matrix - eta), 1)
+
+					match_ind = (diff_dists < diff_tol).nonzero()
+
+					# ipdb.set_trace()
+
+					if len(match_ind[0]) == 0: # A new mixed state was generated
+						new_states = True
+
+						etas_new = numpy.vstack((etas_new, eta))
+						etas_matrix = numpy.vstack((etas_matrix, eta))
+					else: # No new mixed state was generated.
+						pass
+
+		etas_cur = etas_new[1:, :].copy()
+		etas_new = numpy.matrix([numpy.nan]*len(M_states_to_index))
+
+	# print(etas_matrix)
+
+	W_x = {}
+
+	for x_ind, x in enumerate(axs):
+		W_x[x] = numpy.matrix(numpy.zeros((etas_matrix.shape[0], etas_matrix.shape[0])))
+
+	for row_ind in range(etas_matrix.shape[0]):
+		eta0 = etas_matrix[row_ind, :]
+
+		for x in axs:
+			numer = eta0*T_x[x]
+
+			# if numer*Is == 0.:
+			# 	eta1 = [numpy.nan]*eta0.shape[0]
+			# else:
+			# 	eta1 = numer/(numer*Is)
+
+			eta1 = numer/(numer*Is)
+
+			if numpy.sum(numpy.isnan(eta1)) != len(M_states_to_index):
+				diff_dists = numpy.mean(numpy.abs(etas_matrix - eta1), 1)
+
+				col_ind = (diff_dists < diff_tol).nonzero()[0]
+
+				W_x[x][row_ind, col_ind] = numer*Is
+
+	W = numpy.matrix(numpy.zeros((etas_matrix.shape[0], etas_matrix.shape[0])))
+
+	for x in axs:
+		W += W_x[x]
+
+	row_sums = numpy.array(numpy.nansum(W, 1)).flatten()
+
+	for row_ind in range(W.shape[0]):
+		W[row_ind, :] = W[row_ind, :]/row_sums[row_ind]
+
+	D, Pl, Pr = scipy.linalg.eig(W, left = True, right = True)
+
+	# This only works for eigenvalues that have algebraic multiplicity
+	# of 1:
+
+	# W_lam = {}
+
+	# for eigval_ind, eigval in enumerate(D):
+	# 	eig_right = numpy.matrix(Pr[:, eigval_ind])
+	# 	eig_left  = numpy.matrix(Pl[:, eigval_ind])
+
+	# 	print(eigval, eig_left.T*eig_right)
+
+	# 	W_lam[eigval] = (eig_right.T*eig_left)/(eig_left*eig_right.T)
+
+	# This only works when W is diagonalizable. (???)
+
+	W_lam = {}
+
+	Id = numpy.eye(D.shape[0])
+
+	D_unique = D.copy()
+
+	ind_eigval1 = numpy.isclose(D_unique, 1.0).nonzero()[0][0]
+
+	for eigval_ind, eigval in enumerate(D_unique):
+		W_lam[eigval] = Id.copy()
+
+		for eigval2 in D_unique:
+			if eigval == eigval2:
+				pass
+			else:
+				# W_lam[eigval] = ((W - eigval2*Id)/(eigval - eigval2))*W_lam[eigval]
+				W_lam[eigval] = W_lam[eigval]*((W - eigval2*Id)/(eigval - eigval2))
+
+	HWA = -numpy.nansum(numpy.multiply(numpy.log2(W),W), 1).T
+
+	arg_eig_1 = (numpy.isclose(D, 1.)).nonzero()[0][0]
+	v_eig_1   = Pl[:, arg_eig_1].T
+	mixed_state_stationary_dist   = numpy.real(v_eig_1/numpy.sum(v_eig_1))
+
+	# plt.figure()
+	# plt.plot(mixed_state_stationary_dist.T, '.')
+
+	Cmu = 0.
+
+	for p in mixed_state_stationary_dist:
+		if not numpy.isclose(p, 0.0):
+			Cmu += -p*numpy.log2(p)
+
+	hmu = float(mixed_state_stationary_dist*HWA.T)
+
+	delta_eta = numpy.matrix(numpy.zeros(etas_matrix.shape[0]))
+	delta_eta[0, 0] = 1.
+
+	hmu2 = float(numpy.real(delta_eta*W_lam[D_unique[ind_eigval1]]*HWA.T))
+
+	# print('The entropy rates using the stationary distribution over the mixed states and W_{{1}} are:\n{}\n{}'.format(hmu, hmu2))
+
+	hLs = []
+
+	Wprod = numpy.matrix(numpy.eye(etas_matrix.shape[0]))
+
+	if L_max < 1000:
+		L_use = 2000
+	else:
+		L_use = 2*L_max
+
+	for L in range(L_use):
+		hLs.append(float(delta_eta*Wprod*HWA.T))
+
+		Wprod = Wprod*W
+
+	hLs = numpy.array(hLs)
+
+	HLs = numpy.cumsum(hLs)
+
+	ELs = 2*HLs[:L_use/2] - HLs[1::2]
+
+	cumsum_E = numpy.cumsum(hLs - hmu)
+
+	if numpy.linalg.matrix_rank(Pr) == Pr.shape[0]:
+		E = 0.
+
+		for eigval in D_unique:
+			if numpy.abs(eigval) < 1:
+				E += (delta_eta*W_lam[eigval]*HWA.T)/(1 - eigval)
+
+		E = float(numpy.real(E))
+	else:
+		E = cumsum_E[-1]
+
+	if to_plot:
+		fig, ax = plt.subplots(2, sharex = True)
+		ax[0].plot(hLs[:L_max], '.')
+		ax[0].axhline(hmu, linestyle = '--', color = 'r')
+		ax[0].set_ylabel('$h(L)$')
+		ax[1].plot(ELs[:L_max], '.')
+		ax[1].axhline(E, linestyle = '--', color = 'r')
+		ax[1].set_ylabel('$E(L)$')
+		ax[1].set_xlabel('$L$')
+
+	# print('The Excess Entropy E is: {} ({}, {})'.format(E, cumsum_E[-1], ELs2[-1]))
+
+	return HLs[:L_max], hLs[:L_max], hmu, ELs[:L_max], E, Cmu, etas_matrix
