@@ -413,7 +413,7 @@ def draw_dot(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max):
 							
 									wfile.write('{} -> {} [label = \"{}|{}:{:.3}\"];\n'.format(numeric_to_alpha(printing_lookup[state]), numeric_to_alpha(printing_lookup[to_state]), ay, ax, prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]))
 		wfile.write('}')
-def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max):
+def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits = False):
 	"""
 	This function draws the .dot file associated with the 
 	epsilon-transducer stored in epsilon+invepsilon.
@@ -524,9 +524,10 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 										
 										exists_transition[(state, to_state)] = True
 										
-										W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]])
-							
-										# wfile.write('{} -> {} [label = \"({}, {})\"];\n'.format(numeric_to_alpha(printing_lookup[state]), numeric_to_alpha(printing_lookup[to_state]), ax, ay))
+										if all_digits:
+											W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]])
+										else:
+											W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]])
 					else:
 						pass
 				else:
@@ -544,7 +545,10 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 							
 									exists_transition[(state, to_state)] = True
 									
-									W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]])
+									if all_digits:
+										W[(state, to_state)] += '{}|{}:{:}\\l'.format(ay, ax, prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]])
+									else:
+										W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]])
 		
 		for from_state in invepsilon.keys():
 			for to_state in invepsilon.keys():
@@ -1203,7 +1207,7 @@ def estimate_predictive_distributions(stringX, stringY, L_max, is_multiline = Fa
 				word_lookup_fut[(trunc_stringX, trunc_stringY)] += 1
 	
 	return word_lookup_marg, word_lookup_fut
-def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False):
+def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False, all_digits = False):
 	"""
 	run_transCSSR performs the CSSR algorithm, adapted for
 	epsilon-transducers, to estimate the Shalizi-style
@@ -1665,10 +1669,10 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 	# save_states('transCSSR_results/mydot-det_recurrent', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	
 	if fname == None:
-		draw_dot_singlearrows('transCSSR_results/{}+{}'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+		draw_dot_singlearrows('transCSSR_results/{}+{}'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits)
 		save_states('transCSSR_results/{}+{}'.format(Xt_name, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	else:
-		draw_dot_singlearrows('transCSSR_results/{}'.format(fname), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
+		draw_dot_singlearrows('transCSSR_results/{}'.format(fname), epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits)
 		save_states('transCSSR_results/{}'.format(fname), epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 	
 	return epsilon, invepsilon, morph_by_state
@@ -3779,6 +3783,66 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 	return pred_probs_by_time, cur_states_by_time
 
 def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_states_to_index = None, M_trans = None, stationary_dist_eM = None):
+	"""
+	Compute i(nformation- and) c(omputation-) t(heoretic) measures from an $\epsilon$-machine stored in dot format.
+
+	We use the spectral representation of the process via its mixed
+	state presentation, as described in
+
+	J. P. Crutchfield, C. J. Ellison, and P. M. Riechers, "Exact complexity: The spectral decomposition of intrinsic computation," Physics Letters A, vol. 380, no. 9, pp. 998-1002, Mar. 2016. [arXiv](https://arxiv.org/abs/1309.3792).
+
+	Parameters
+	----------
+	machine_fname : string
+			The path to the epsilon-machine in dot format.
+	axs : list
+			The process alphabet.
+	inf_alg : string
+			The inference algorithm used to estimate the machine.
+			One of {'CSSR', 'transCSSR'}
+	L_max : int
+			How far out to compute the finite-L entropy rate
+			and excess entropy.
+	to_plot : boolean
+			Whether or not to plot the intermediate results.
+
+	Returns
+	-------
+	HLs : numpy.array
+			The entropies over words of length L,
+			starting at HLs[0] = H[X_{0}] and going
+			up to HLs[L_max] = H[X_{0}^{L_{max}}].
+	hLs : numpy.array
+			The conditional entropies, conditioning
+			on pasts of length L, starting at
+			hLs[0] = H[X_{0} | *] = H[X_{0}] and
+			going up to 
+			hLs[L_max] = H[X_{0} | X_{-(L-1)}^{0}].
+	hmu : float
+			The asymptotic entropy rate.
+	ELs : numpy.array
+			The finite-L excess entropies, i.e.
+			the mutual information between past
+			and future blocks, each of length L,
+			starting at ELs[0] = I[X_{-1}; X_{0}]
+			and going up to 
+			ELs[L_max] = [X_{-L_max}^{-1}; X_{0}^{L_max - 1}].
+	Cmu : float
+			The statistical complexity.
+	etas_matrix : numpy.matrix
+			The states associated with the mixed
+			state presentation of the process.
+
+	Notes
+	-----
+	Any notes go here.
+
+	Examples
+	--------
+	>>> import module_name
+	>>> # Demonstrate code here.
+
+	"""
 
 	if stationary_dist_eM == None:
 		P, M_states_to_index, M_trans = compute_eM_transition_matrix(machine_fname, axs, inf_alg = inf_alg)

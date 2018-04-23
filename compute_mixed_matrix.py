@@ -3,16 +3,14 @@ from transCSSR_bc import *
 import numpy
 import scipy
 
-import ipdb
-
 import matplotlib.pyplot as plt
 
 # machine_fname = 'transCSSR_results/+even-exact.dot'
 # machine_fname = 'transCSSR_results/+golden-mean.dot'
 # machine_fname = 'transCSSR_results/+barnettX.dot'
 # machine_fname = 'transCSSR_results/+RnC.dot'
-# machine_fname = 'transCSSR_results/+RIP-exact.dot'
-machine_fname = 'transCSSR_results/+RIP.dot'
+machine_fname = 'transCSSR_results/+RIP-exact.dot'
+# machine_fname = 'transCSSR_results/+RIP.dot'
 # machine_fname = 'transCSSR_results/+complex-csm.dot'
 # machine_fname = 'transCSSR_results/+renewal-process.dot'
 
@@ -30,9 +28,10 @@ def Hp(p):
 	return -numpy.sum(x*numpy.log2(x))
 
 p = 0.5
+q = 0.5
 
 Hp(1/(2 - p)) - Hp(p)/(2 - p) # E for Golden Mean process
 
-numpy.log2(p + 2) - p*numpy.log2(p)/(p + 2) - (1 - p*(1-p))/(p+2)*Hp((1 - p)/(1 - p*(1 - p))) # E for RIP
+numpy.log2(p + 2) - p*numpy.log2(p)/(p + 2) - (1 - p*q)/(p+2)*Hp((1 - p)/(1 - p*q)) # E for RIP
 
 plt.show()
