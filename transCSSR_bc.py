@@ -478,7 +478,7 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 			prob_by_x = counts_by_x/numpy.sum(counts_by_x)
 		
 			prob_by_state[state][x_ind*len(ays):x_ind*len(ays) + len(ays)] = prob_by_x
-	
+
 	dot_header = 'digraph  {\nsize = \"6,8.5\";\nratio = "fill";\nnode\n[shape = circle];\nnode [fontsize = 24];\nnode [penwidth = 5];\nedge [fontsize = 24];\nnode [fontname = \"CMU Serif Roman\"];\ngraph [fontname = \"CMU Serif Roman\"];\nedge [fontname = \"CMU Serif Roman\"];\n'
 
 	with open('{}.dot'.format(fname), 'w') as wfile:
@@ -520,14 +520,17 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 									if seen_transition.get((state, to_state, (ax, ay)), False):
 										pass
 									else:
-										seen_transition[(state, to_state, (ax, ay))] = True
-										
-										exists_transition[(state, to_state)] = True
-										
-										if all_digits:
-											W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]])
-										else:
-											W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]])
+										ptrans = prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]
+
+										if not numpy.isnan(ptrans):
+											seen_transition[(state, to_state, (ax, ay))] = True
+											
+											exists_transition[(state, to_state)] = True
+
+											if all_digits:
+												W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, ptrans)
+											else:
+												W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, ptrans)
 					else:
 						pass
 				else:
@@ -541,14 +544,17 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 								if seen_transition.get((state, to_state, (ax, ay)), False):
 									pass
 								else:
-									seen_transition[(state, to_state, (ax, ay))] = True
-							
-									exists_transition[(state, to_state)] = True
-									
-									if all_digits:
-										W[(state, to_state)] += '{}|{}:{:}\\l'.format(ay, ax, prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]])
-									else:
-										W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]])
+									ptrans = prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]
+
+									if not numpy.isnan(ptrans):
+										seen_transition[(state, to_state, (ax, ay))] = True
+										
+										exists_transition[(state, to_state)] = True
+
+										if all_digits:
+											W[(state, to_state)] += '{}|{}:{:}\\l'.format(ay, ax, ptrans)
+										else:
+											W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, ptrans)
 		
 		for from_state in invepsilon.keys():
 			for to_state in invepsilon.keys():
