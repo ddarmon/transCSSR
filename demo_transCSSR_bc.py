@@ -11,6 +11,8 @@ from igraph import *
 
 from transCSSR_bc import *
 
+import time
+
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #
 # The various test transducers. Xt is the input
@@ -111,11 +113,13 @@ e_symbols = list(itertools.product(axs, ays)) # All of the possible pairs of emi
 
 alpha = 0.001
 
+counting_method = 1
+
 verbose = False
 
 # L is the maximum amount we want to ever look back.
 
-L_max = 5
+L_max = 10
 
 Tx = len(stringX); Ty = len(stringY)
 
@@ -123,7 +127,9 @@ assert Tx == Ty, 'The two time series must have the same length.'
 
 T = Tx
 
-word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_max)
+startTime = time.time()
+word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_max, counting_method = counting_method, axs = axs, ays = ays)
+print ('The transCSSR counting took {0} seconds...'.format(time.time() - startTime))
 
 epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, verbose = False)
 
@@ -133,7 +139,7 @@ print_morph_by_states(morph_by_state, axs, ays, e_symbols)
 
 filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max)
 
-print 'Xt Yt \hat\{Y\}t St P(Yt = 1 | Xt, St)'
+# print 'Xt Yt \hat\{Y\}t St P(Yt = 1 | Xt, St)'
 
-for t_ind in range(int(numpy.min([100, len(stringX)]))):
-	print stringX[t_ind], stringY[t_ind], stringY_pred[t_ind], filtered_states[t_ind], filtered_probs[t_ind]
+# for t_ind in range(int(numpy.min([100, len(stringX)]))):
+# 	print stringX[t_ind], stringY[t_ind], stringY_pred[t_ind], filtered_states[t_ind], filtered_probs[t_ind]

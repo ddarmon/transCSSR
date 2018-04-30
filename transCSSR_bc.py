@@ -1077,7 +1077,7 @@ def get_transitions(epsilon, invepsilon, e_symbols, L_max, memoryless = False):
 
 
 
-def estimate_predictive_distributions(stringX, stringY, L_max, is_multiline = False, verbose = True):
+def estimate_predictive_distributions(stringX, stringY, L_max, counting_method = 0, axs = None, ays = None, is_multiline = False, verbose = False):
 	"""
 	Given a string of inputs and outputs,
 	returns the counts associated with
@@ -1105,6 +1105,25 @@ def estimate_predictive_distributions(stringX, stringY, L_max, is_multiline = Fa
 	L_max : int
 			The maximum history length to use in inferring the
 			predictive distributions.
+	counting_method : int
+			The method used to count the occurrences of joint
+			words of length 0 to L_max + 1. One of {0, 1}
+
+			0 : The joint words of length 0 to L_max + 1 are 
+			    counted as we parse the string.
+			1 : The joint words of length L_max + 1 are counted
+			    as we parse the string, and then the counts of
+			    joint sub-words are obtained by marginalizing
+			    the counts of the joint words.
+
+			0 is faster for larger L_max and shorter strings.
+			1 is faster for smaller L_max and longer strings.
+	axs : list
+			The emission symbols associated with X.
+			Only needed if counting_method == 1.
+	ays : list
+			The emission symbols associated with Y.
+			Only needed if counting_method == 1.
 	is_multiline : bool
 			True if the input files are stored with a single
 			realization per line.
@@ -1136,46 +1155,60 @@ def estimate_predictive_distributions(stringX, stringY, L_max, is_multiline = Fa
 
 	"""
 
+	# Counter for events (X_{t-L}^{t-1}, Y_{t-L}^{t-1})
+
+	word_lookup_marg = Counter()
+
+	# Counter for events (X_{t-L}^{t-1}, Y_{t-L}^{t-1}, Y_{t})
+
+	word_lookup_fut  = Counter()
+
 	if is_multiline:
 		Xs = copy.copy(stringX); Ys = copy.copy(stringY)
-		
-		# Counter for events (X_{t-L}^{t-1}, Y_{t-L}^{t-1})
-
-		word_lookup_marg = Counter()
-
-		# Counter for events (X_{t-L}^{t-1}, Y_{t-L}^{t-1}, Y_{t})
-
-		word_lookup_fut  = Counter()
 		
 		if verbose:
 			print 'Estimating predictive distributions using multi-line.'
 		
-		for line_ind in range(len(Xs)):
-			stringX = Xs[line_ind]; stringY = Ys[line_ind]
-			
-			Tx = len(stringX)
-	
-			Ty = len(stringY)
-	
-			assert Tx == Ty, 'The two time series must have the same length.'
-	
-			T = Tx
-
-			for t_ind in range(T-L_max):
-				cur_stringX = stringX[t_ind:(t_ind + L_max + 1)]
-	
-				cur_stringY = stringY[t_ind:(t_ind + L_max + 1)]
-	
-				word_lookup_marg[(cur_stringX, cur_stringY[:-1])] += 1
-				word_lookup_fut[(cur_stringX, cur_stringY)] += 1
-	
-				# for remove_inds in range(0, L_max+1): DON'T NEED THIS
-				for remove_inds in range(1, L_max+1):
-					trunc_stringX = cur_stringX[:-remove_inds]
-					trunc_stringY = cur_stringY[:-remove_inds]
+		if counting_method == 0:
+			for line_ind in range(len(Xs)):
+				stringX = Xs[line_ind]; stringY = Ys[line_ind]
+				
+				Tx = len(stringX)
 		
-					word_lookup_marg[(trunc_stringX, trunc_stringY[:-1])] += 1
-					word_lookup_fut[(trunc_stringX, trunc_stringY)] += 1
+				Ty = len(stringY)
+		
+				assert Tx == Ty, 'The two time series must have the same length.'
+		
+				T = Tx
+
+				for t_ind in range(T-L_max):
+					cur_stringX = stringX[t_ind:(t_ind + L_max + 1)]
+		
+					cur_stringY = stringY[t_ind:(t_ind + L_max + 1)]
+		
+					word_lookup_marg[(cur_stringX, cur_stringY[:-1])] += 1
+					word_lookup_fut[(cur_stringX, cur_stringY)] += 1
+		
+					for remove_inds in range(1, L_max+1):
+						trunc_stringX = cur_stringX[:-remove_inds]
+						trunc_stringY = cur_stringY[:-remove_inds]
+			
+						word_lookup_marg[(trunc_stringX, trunc_stringY[:-1])] += 1
+						word_lookup_fut[(trunc_stringX, trunc_stringY)] += 1
+		elif counting_method == 1:
+			for line_ind in range(len(Xs)):
+				stringX = Xs[line_ind]; stringY = Ys[line_ind]
+				
+				Tx = len(stringX)
+		
+				Ty = len(stringY)
+		
+				assert Tx == Ty, 'The two time series must have the same length.'
+		
+				T = Tx
+
+				for t_ind in range(T-L_max):
+					word_lookup_fut[stringX[t_ind:t_ind+L_max+1], stringY[t_ind:t_ind+L_max+1]] += 1
 	else:
 		Tx = len(stringX)
 	
@@ -1184,33 +1217,71 @@ def estimate_predictive_distributions(stringX, stringY, L_max, is_multiline = Fa
 		assert Tx == Ty, 'The two time series must have the same length.'
 	
 		T = Tx
-	
-		# Counter for events (X_{t-L}^{t-1}, Y_{t-L}^{t-1})
-
-		word_lookup_marg = Counter()
-
-		# Counter for events (X_{t-L}^{t-1}, Y_{t-L}^{t-1}, Y_{t})
-
-		word_lookup_fut  = Counter()
 		
 		if verbose:
 			print 'Estimating predictive distributions.'
 
-		for t_ind in range(T-L_max):
-			cur_stringX = stringX[t_ind:(t_ind + L_max + 1)]
-	
-			cur_stringY = stringY[t_ind:(t_ind + L_max + 1)]
-	
-			word_lookup_marg[(cur_stringX, cur_stringY[:-1])] += 1
-			word_lookup_fut[(cur_stringX, cur_stringY)] += 1
-	
-			# for remove_inds in range(0, L_max+1): # DON'T NEED THIS
-			for remove_inds in range(1, L_max+1):
-				trunc_stringX = cur_stringX[:-remove_inds]
-				trunc_stringY = cur_stringY[:-remove_inds]
+		if counting_method == 0:
+			for t_ind in range(T-L_max):
+				cur_stringX = stringX[t_ind:(t_ind + L_max + 1)]
 		
-				word_lookup_marg[(trunc_stringX, trunc_stringY[:-1])] += 1
-				word_lookup_fut[(trunc_stringX, trunc_stringY)] += 1
+				cur_stringY = stringY[t_ind:(t_ind + L_max + 1)]
+		
+				word_lookup_marg[(cur_stringX, cur_stringY[:-1])] += 1
+				word_lookup_fut[(cur_stringX, cur_stringY)] += 1
+		
+				for remove_inds in range(1, L_max+1):
+					trunc_stringX = cur_stringX[:-remove_inds]
+					trunc_stringY = cur_stringY[:-remove_inds]
+			
+					word_lookup_marg[(trunc_stringX, trunc_stringY[:-1])] += 1
+					word_lookup_fut[(trunc_stringX, trunc_stringY)] += 1
+		elif counting_method == 1:
+			for t_ind in range(T-L_max):
+				word_lookup_fut[stringX[t_ind:t_ind+L_max+1], stringY[t_ind:t_ind+L_max+1]] += 1
+
+	if counting_method == 1:
+		assert axs is not None and ays is not None, "Please provide the alphabets for the input (axs) and output (ays)."
+
+
+		seen_subword = {}
+
+		histories_by_L = [word_lookup_fut.keys()]
+
+		for L_cur in range(L_max, -1, -1):
+			histories_by_L.append([])
+
+			for wordX, wordY in histories_by_L[-2]:
+				subwordX = wordX[:L_cur]
+				subwordY = wordY[:L_cur]
+
+				if seen_subword.get((subwordX, subwordY), False):
+					pass
+				else:
+					histories_by_L[-1].append((subwordX, subwordY))
+
+					seen_subword[subwordX, subwordY] = True
+
+					c_xy = 0
+
+					for ax in axs:
+						c_x  = 0
+
+						for ay in ays:
+							c_xy += word_lookup_fut.get((subwordX + ax, subwordY + ay), 0)
+							c_x  += word_lookup_fut.get((subwordX + ax, subwordY + ay), 0)
+
+						if c_x == 0:
+							pass
+						else:
+							word_lookup_marg[subwordX + ax, subwordY] = c_x
+
+					if c_xy == 0:
+						pass
+					else:
+						word_lookup_fut[subwordX, subwordY] = c_xy
+
+		del word_lookup_fut['', '']
 	
 	return word_lookup_marg, word_lookup_fut
 def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False, all_digits = False):
