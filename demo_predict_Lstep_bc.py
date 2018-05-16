@@ -11,7 +11,7 @@ from igraph import *
 
 from transCSSR_bc import *
 
-import ipdb
+import matplotlib.pyplot as plt
 
 data_prefix = ''
 
@@ -92,35 +92,67 @@ M_states = M_states_to_index.keys()
 
 stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
 
-M_start_state = 'A'
-T_start_state = 'A'
-
-L_max = 12
+L_max = 5
 
 N = L_max-1
 
-num_sims = 5000
+num_sims = 4000
 
-count_ones = numpy.zeros(L_max-1)
+# for T_start_state in [T_start_state]:
+for M_start_state, T_start_state in itertools.product(M_states, T_states):
+	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	#
+	# Estimate the L-step probabilities directly from
+	# counting across an ensemble of realizations from
+	# the system initialized at the desired start states.
+	#
+	# These give a quick check that the probabilities
+	# computed directly from the eM+eT representation
+	# are correct.
+	#
+	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-for sim_ind in range(num_sims):
-	X = simulate_eM(N, 'transCSSR_results/+{}.dot'.format(Xt_name), ays, 'transCSSR', initial_state = M_start_state)
+	count_ones = numpy.zeros(L_max-1)
 
-	Y = simulate_eT(N, 'transCSSR_results/+{}.dot'.format(Xt_name), 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name), X, axs, ays, 'transCSSR', initial_state = T_start_state)
+	for sim_ind in range(num_sims):
+		X = simulate_eM(N, 'transCSSR_results/+{}.dot'.format(Xt_name), ays, 'transCSSR', initial_state = M_start_state)
 
-	for y_ind, y in enumerate(Y):
-		if y == '1':
-			count_ones[y_ind] += 1
+		Y = simulate_eT(N, 'transCSSR_results/+{}.dot'.format(Xt_name), 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name), X, axs, ays, 'transCSSR', initial_state = T_start_state)
 
-prop_ones = count_ones / num_sims
+		for y_ind, y in enumerate(Y):
+			if y == '1':
+				count_ones[y_ind] += 1
 
-print prop_ones
+	prop_ones = count_ones / num_sims
 
-for T_start_state in [T_start_state]:
-# for T_start_state in T_states:
-	print('\nStarting from transducer state {}...'.format(T_start_state))
+	print prop_ones
+
+	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	#
+	# Estimate the L-step probabilities directly from
+	# the eM+eT representation of the input-output
+	# process.
+	#
+	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+	print('\nStarting from input eM state {} and transducer state {}...'.format(M_start_state, T_start_state))
 	M_state_from = M_start_state
 	T_state_from = T_start_state
+
+	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	#
+	# Compute the joint input-output word probabilities:
+	#
+	# 	P(Y_{1}^{L}, X_{1}^{L} | S_{0} = s)
+	#
+	# for L = 1 to L_max.
+	#
+	# Do so recursively, by first computing 
+	# P(Y_{1}, X_{1} | S_{0} = s), then 
+	# P(Y_{1}^{2}, X_{1}^{2} | S_{0} = s), etc.,
+	# using the recursive updating 
+	#
+	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 	p_joint_string_Lp1 = numpy.zeros((len(axs), len(ays)))
 
@@ -158,16 +190,8 @@ for T_start_state in [T_start_state]:
 
 						joint_string_prods[-1][(xword + x, yword + y)] = p_prod*pT_to*pM_to
 						joint_string_states[-1][(xword + x, yword + y)] = (M_state_to, T_state_to)
-		# 		p_joint_string_Lp1[ax_ind, ay_ind] += p_eT*p_eM
 
-		# print(p_joint_string_Lp1)
-
-		# p_y_string = numpy.sum(p_joint_string_Lp1, 0)
-		# p_y_string = p_y_string / numpy.sum(p_y_string)
-
-		# print(p_y_string)
-
-	# The total probability across the words at a given level should sum to 1.
+	# The total probability across all input-output words of length L should sum to 1:
 
 	# for ind in range(len(joint_string_prods)):
 	# 	tot_prob = 0.
@@ -177,7 +201,15 @@ for T_start_state in [T_start_state]:
 
 	# 	print(ind, tot_prob)
 
-	# Compute P(Y_{L} | S_{0} = s)
+	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	#
+	# Compute P(Y_{L} | S_{0} = s) by appropriately
+	# marginalizing from 
+	# 
+	# 	P(Y_{1}^{L}, X_{1}^{L} | S_{0} = s)
+	# 
+	#
+	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 	pred_probs_by_L = numpy.zeros((L_max-1, len(ays)))
 
@@ -189,16 +221,24 @@ for T_start_state in [T_start_state]:
 
 					pred_probs_by_L[L-1, ay_ind] += p_prod
 
-		# print(pred_probs_by_L[L-1, :], pred_probs_by_L[L-1, :]/numpy.sum(pred_probs_by_L[L-1, :]))
-
 		pred_probs_by_L[L-1, :] = pred_probs_by_L[L-1, :]/numpy.sum(pred_probs_by_L[L-1, :])
 
 		print(pred_probs_by_L[L-1, :])
 
-	import matplotlib.pyplot as plt
+	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	#
+	# Compare the direct estimate of L-step probabilities
+	# across realizations to the eM+eT L-step probabilities.
+	#
+	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 	plt.figure()
-	plt.plot(pred_probs_by_L[:, 0])
-	plt.plot(pred_probs_by_L[:, 1])
-	plt.plot(prop_ones)
-	plt.show()
+	# plt.plot(pred_probs_by_L[:, 0])
+	plt.plot(pred_probs_by_L[:, 1], '.', label = 'Using eM+eT')
+	plt.plot(prop_ones, '.', label = 'From direct estimate across {} realizations'.format(num_sims))
+	plt.xlabel('$L$')
+	plt.ylabel('$P(Y_{{L}} = 1 \mid S_{{0}} = ({}, {}))$'.format(M_start_state, T_start_state))
+	plt.ylim([0, 1])
+	plt.legend()
+
+plt.show(block = False)
