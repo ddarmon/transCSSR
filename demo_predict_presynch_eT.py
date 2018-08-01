@@ -108,7 +108,14 @@ for cur_ind in range(1, ind_go_to):
 
 filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max, memoryless = False)
 
-for ind in range(ind_go_to):
+print_go_to = 40
+
+print("\n\nFirst {} predictions.".format(print_go_to))
+for ind in range(print_go_to):
+	print(filtered_probs[ind], preds_all[ind, 1])
+
+print("\n\nLast {} predictions.".format(print_go_to))
+for ind in range(preds_all.shape[0] - print_go_to, preds_all.shape[0]):
 	print(filtered_probs[ind], preds_all[ind, 1])
 
 # import matplotlib.pyplot as plt
