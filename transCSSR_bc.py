@@ -3707,14 +3707,14 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 	# 
 	# P(Y_{L+1} = y_{L+1} | X_{L+1} = x_{L+1}, X_{1}^{L} = x_{1}^{L}, Y_{1}^{L} = y_{1}^{L})
 
-	p_joint_string_L_by_time = numpy.zeros(len(stringX)-1)
-	p_joint_string_Lp1_by_time = numpy.zeros((len(stringX)-1, len(ays)))
+	p_joint_string_L_by_time = numpy.zeros(len(stringX))
+	p_joint_string_Lp1_by_time = numpy.zeros((len(stringX), len(ays)))
 
-	p_input_string_L_by_time = numpy.zeros(len(stringX)-1)
-	p_input_string_Lp1_by_time = numpy.zeros(len(stringX)-1)
+	p_input_string_L_by_time = numpy.zeros(len(stringX))
+	p_input_string_Lp1_by_time = numpy.zeros(len(stringX))
 	
-	cur_states_by_time = numpy.zeros((len(stringX)-1, len(T_states)), dtype = numpy.int16)
-	pred_probs_by_time = numpy.zeros((len(stringX)-1, len(ays)))
+	cur_states_by_time = numpy.zeros((len(stringX), len(T_states)), dtype = numpy.int16)
+	pred_probs_by_time = numpy.zeros((len(stringX), len(ays)))
 
 	mixed_states_array = numpy.arange(len(stationary_dist_mixed))
 	active_mixed_states_boolean = stationary_dist_mixed > 0
@@ -3838,7 +3838,7 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 
 	T_state_from = T_states[which_state]
 
-	for t in range(t_synched, len(stringX)-2):
+	for t in range(t_synched, len(stringX)):
 		x = stringX[t]
 		for ay_ind, ay in enumerate(ays):
 			y = ay
@@ -3855,7 +3855,7 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 
 		T_state_from = T_state_to
 
-		cur_states_by_time[t+1, T_states_to_index[T_state_from]] = 1
+		cur_states_by_time[t, T_states_to_index[T_state_from]] = 1
 
 	return pred_probs_by_time, cur_states_by_time
 

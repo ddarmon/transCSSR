@@ -118,7 +118,11 @@ print("\n\nLast {} predictions.".format(print_go_to))
 for ind in range(preds_all.shape[0] - print_go_to, preds_all.shape[0]):
 	print(filtered_probs[ind], preds_all[ind, 1])
 
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
-# plt.plot(preds_all[:, 0])
-# plt.show()
+plt.figure()
+plt.plot(filtered_probs[:, 1], label = 'Using filter_and_predict')
+plt.plot(preds_all[:, 1], label = 'Using filter_and_pred_probs')
+plt.xlim([0, 1000])
+plt.legend()
+plt.show()
