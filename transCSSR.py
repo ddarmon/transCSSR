@@ -11,8 +11,10 @@ import copy
 import pylab
 from matplotlib import cm
 from matplotlib.colors import LinearSegmentedColormap
+from sklearn.metrics import log_loss
+import subprocess
 
-# Dependencies: numpy, scipy, pandas, igraph, pylab, matplotlib
+# Dependencies: numpy, scipy, pandas, igraph, pylab, matplotlib, sklearn
 
 from filter_data_methods import *
 
@@ -5069,3 +5071,70 @@ def compute_mixed_state_matrix(machine_fname, axs, inf_alg, initial_state = None
 			S1, p = M_trans.get((S0, ax), (None, 0.))
 	
 	return X
+
+def choose_L_using_split_half_cv(stringX, stringY, Xt_name, Yt_name, L_max, axs, ays, e_symbols, remove_intermediate_results = True, test_type = 'G', alpha = 0.001):
+	# Choose L using split-half cross-validation:
+
+	inf_alg = 'transCSSR'
+
+	# L is the maximum amount we want to ever look back.
+
+	L_max_words = L_max
+	L_max_CSSR  = L_max
+
+	stringY_train = stringY[:len(stringY)//2]
+	stringY_test  = stringY[len(stringY)//2:]
+
+	stringX_train = stringX[:len(stringX)//2]
+	stringX_test  = stringX[len(stringX)//2:]
+
+	ays_lookup = {}
+	y_labels = []
+
+	for y_ind, y in enumerate(ays):
+		ays_lookup[y] = y_ind
+		y_labels.append(y_ind)
+
+	arrayY = numpy.zeros(len(stringY_test), dtype = 'int16')
+
+	for t, y in enumerate(stringY_test):
+		arrayY[t] = ays_lookup[y]
+
+	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX_train, stringY_train, L_max_words)
+
+	log_loss_by_L = []
+
+	Ls = range(1, L_max_CSSR+1)
+
+	for L in Ls:
+		machine_fname = 'transCSSR_results/+{}.dot'.format(Xt_name)
+		transducer_fname = 'transCSSR_results/{}+{}{}.dot'.format(Xt_name, Yt_name, L)
+
+		epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L, axs, ays, e_symbols, Xt_name, Yt_name + str(L), test_type = test_type, alpha = alpha, all_digits = True)
+		
+		# try: # If we attempt to filter a forbidden past, filter_and_pred_probs will throw an error.
+		# 	pred_probs_by_time, cur_states_by_time = filter_and_pred_probs(stringX_test, stringY_test, machine_fname, transducer_fname, axs, ays, inf_alg)
+		# 	log_loss_by_L.append(log_loss(y_pred=pred_probs_by_time, y_true=arrayY, labels = y_labels))
+		# except:
+		# 	log_loss_by_L.append(numpy.nan)
+
+		pred_probs_by_time, cur_states_by_time = filter_and_pred_probs(stringX_test, stringY_test, machine_fname, transducer_fname, axs, ays, inf_alg)
+		log_loss_by_L.append(log_loss(y_pred=pred_probs_by_time, y_true=arrayY, labels = y_labels))
+		
+		print('Using L = {}, the Log-Loss is {}.'.format(L, log_loss_by_L[-1]))
+
+	L_opt = Ls[numpy.nanargmin(log_loss_by_L)]
+
+	print('Train / Test split with log-loss chooses L_opt = {}'.format(L_opt))
+
+	subprocess.call('cp {} {}'.format('transCSSR_results/+{}{}.dot'.format(Yt_name, L_opt), 'transCSSR_results/+{}.dot'.format(Yt_name)), shell = True)
+	subprocess.call('cp {} {}'.format('transCSSR_results/+{}{}.dat_results'.format(Yt_name, L_opt), 'transCSSR_results/+{}.dat_results'.format(Yt_name)), shell = True)
+
+	# if remove_intermediate_results:
+	# 	# subprocess.call('rm {}'.format('transCSSR_results/+{}[0-9]+.dot'.format(Yt_name, L_opt)), shell = True)
+	# 	# subprocess.call('rm {}'.format('transCSSR_results/+{}[0-9]+.dat_results'.format(Yt_name, L_opt)), shell = True)
+
+	# 	subprocess.call('find transCSSR_results/ -name "{}[0-9]+.dot" -delete'.format(Yt_name), shell = True)
+	# 	subprocess.call('find transCSSR_results/ -name "{}[0-9]+.dat_results" -delete'.format(Yt_name), shell = True)
+
+	return L_opt
