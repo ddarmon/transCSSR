@@ -9,7 +9,7 @@ from collections import Counter, defaultdict
 from filter_data_methods import *
 from igraph import *
 
-from transCSSR import *
+from transCSSR_bc import *
 
 # Yt is the output. Xt should be set to the null string.
 
@@ -20,7 +20,7 @@ data_prefix = ''
 # Yt_name = 'coinflip_through_periodickick'
 # Yt_name = 'coinflip_through_periodicevenkick'
 # Yt_name = 'even_through_even'
-# Yt_name = 'even'
+Yt_name = 'even'
 # Yt_name = 'rip'
 # Yt_name = 'rip-rev'
 # Yt_name = 'barnettY'
@@ -33,7 +33,7 @@ data_prefix = ''
 # Yt_name = 'complex-csm'
 # Yt_name = 'tricoin_through_singh-machine'
 # Yt_name = 'coinflip_through_floatreset'
-Yt_name = '1mm_sim'
+# Yt_name = '1mm_sim'
 
 Xt_name = ''
 
@@ -44,6 +44,8 @@ Xt_name = ''
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 stringY = open('data/{}{}.dat'.format(data_prefix, Yt_name)).readline().strip()
+
+stringY = stringY[:10000]
 
 if Xt_name == '':
 	stringX = '0'*len(stringY)
@@ -74,7 +76,9 @@ verbose = False
 
 # L is the maximum amount we want to ever look back.
 
-L_max = 15
+L_max = 9
+
+inf_alg = 'transCSSR'
 
 Tx = len(stringX); Ty = len(stringY)
 
@@ -84,31 +88,30 @@ T = Tx
 
 word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_max)
 
-epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, is_eM = True)
+epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha)
 
 print 'The epsilon-transducer has {} states.'.format(len(invepsilon))
 
-print_morph_by_states(morph_by_state)
+print_morph_by_states(morph_by_state, axs, ays, e_symbols)
 
 filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max)
 
-word = '11'
+machine_fname = 'transCSSR_results/+.dot'
+transducer_fname = 'transCSSR_results/+{}.dot'.format(Yt_name)
 
-p_L = compute_word_probability_eM(word, 'transCSSR_results/+{}.dot'.format(Yt_name), ays, 'transCSSR')
+pred_probs_by_time, cur_states_by_time = filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg, verbose_filtering_errors = True)
 
-L_word = 3
+pred_probs_by_time_break, cur_states_by_time_break = filter_and_pred_probs_breakforbidden(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg)
 
-L_pow = 2**L_word
+for t in range(30):
+	print(t, stringY[t], filtered_probs[t], pred_probs_by_time_break[t, 1], pred_probs_by_time[t, 1])
 
-p_tot = 0
+import matplotlib.pyplot as plt
+plt.ion()
 
-for i_word in range(L_pow):
-	xs = format(i_word, '0{}b'.format(L_word))
-	
-	p_word = compute_word_probability_eM(xs, 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name), axs, 'transCSSR')
-	
-	print xs, p_word
-	
-	p_tot += p_word
-
-print 'All words sum to {}...'.format(p_tot)
+plt.figure()
+plt.plot(filtered_probs, label = 'filtered_probs')
+plt.plot(pred_probs_by_time_break[:, 1], label = 'pred_probs_by_time_break')
+plt.plot(pred_probs_by_time[:, 1], label = 'pred_probs_by_time')
+plt.xlim([0, 20])
+plt.legend()

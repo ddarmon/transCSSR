@@ -10,6 +10,8 @@ from matplotlib.colors import LinearSegmentedColormap
 
 import matplotlib.pyplot as plt
 
+import ipdb
+
 # Dependencies: numpy, scipy, pandas, igraph, pylab, matplotlib
 
 import numpy
@@ -354,7 +356,7 @@ def draw_dot(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max):
 			counts_by_x = numpy.array(morph_by_state[state], dtype = 'float')[x_ind*len(ays):x_ind*len(ays) + len(ays)]
 			prob_by_x = counts_by_x/numpy.sum(counts_by_x)
 		
-			prob_by_state[state][x_ind*len(ays):x_ind*len(ays) + len(ays)] = prob_by_x
+			prob_by_state[state][x_ind*len(ays):(x_ind+1)*len(ays)] = prob_by_x
 	
 	dot_header = 'digraph  {\nsize = \"6,8.5\";\nratio = "fill";\nnode\n[shape = circle];\nnode [fontsize = 24];\nnode [penwidth = 5];\nedge [fontsize = 24];\nnode [fontname = \"CMU Serif Roman\"];\ngraph [fontname = \"CMU Serif Roman\"];\nedge [fontname = \"CMU Serif Roman\"];\n'
 
@@ -492,7 +494,7 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 		
 		for state_rank, state in enumerate(invepsilon.keys()):
 			printing_lookup[state] = state_rank
-		
+
 		seen_transition = {}
 		
 		exists_transition = {} # Whether a transition exists (from_state, to_state)
@@ -500,61 +502,31 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 		W = defaultdict(str) # The stochastic matrix, stored as a string, by state
 		
 		for state in invepsilon.keys():
-			need_Lmax = True # Whether or not we need to use the length L_max histories in
-							 # defining the transition structure.
-			
-			for hist in invepsilon[state].keys():
-				if len(hist[0]) == L_max - 1:
-					need_Lmax = False
-			
 			for history in invepsilon[state]:
-				if len(history[0]) == L_max:
-					if need_Lmax:
-						for ay in ays:
-							for ax in axs:
-								to_state = epsilon.get((history[0][1:] + ax, history[1][1:] + ay), -1)
-
-								if to_state == -1:
-									pass
-								else:
-									if seen_transition.get((state, to_state, (ax, ay)), False):
-										pass
-									else:
-										ptrans = prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]
-
-										if not numpy.isnan(ptrans):
-											seen_transition[(state, to_state, (ax, ay))] = True
-											
-											exists_transition[(state, to_state)] = True
-
-											if all_digits:
-												W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, ptrans)
-											else:
-												W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, ptrans)
-					else:
-						pass
-				else:
-					for ay in ays:
-						for ax in axs:
+				for ay in ays:
+					for ax in axs:
+						if len(history[0]) == L_max:
+							to_state = epsilon.get((history[0][1:] + ax, history[1][1:] + ay), -1)
+						else:
 							to_state = epsilon.get((history[0] + ax, history[1] + ay), -1)
 
-							if to_state == -1:
+						if to_state == -1:
+							pass
+						else:
+							if seen_transition.get((state, to_state, (ax, ay)), False):
 								pass
 							else:
-								if seen_transition.get((state, to_state, (ax, ay)), False):
-									pass
-								else:
-									ptrans = prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]
+								ptrans = prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]
 
-									if not numpy.isnan(ptrans):
-										seen_transition[(state, to_state, (ax, ay))] = True
-										
-										exists_transition[(state, to_state)] = True
+								if not numpy.isnan(ptrans):
+									seen_transition[(state, to_state, (ax, ay))] = True
+									
+									exists_transition[(state, to_state)] = True
 
-										if all_digits:
-											W[(state, to_state)] += '{}|{}:{:}\\l'.format(ay, ax, ptrans)
-										else:
-											W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, ptrans)
+									if all_digits:
+										W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, ptrans)
+									else:
+										W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, ptrans)
 		
 		for from_state in invepsilon.keys():
 			for to_state in invepsilon.keys():
@@ -690,11 +662,11 @@ def save_states(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max):
 			prob_by_state = numpy.zeros(len(axs)*len(ays))
 			
 			for x_ind in range(len(axs)):
-				counts_by_x = numpy.array(morph_by_state[state], dtype = 'float')[x_ind*len(ays):x_ind*len(ays) + len(ays)]
+				counts_by_x = numpy.array(morph_by_state[state], dtype = 'float')[x_ind*len(ays):(x_ind+1)*len(ays)]
 				prob_by_x = counts_by_x/numpy.sum(counts_by_x)
 				
-				prob_by_state[x_ind*len(ays):x_ind*len(ays) + len(ays)] = prob_by_x
-			
+				prob_by_state[x_ind*len(ays):(x_ind+1)*len(ays)] = prob_by_x
+
 			for emission_ind, e_symbol in enumerate(e_symbols):
 				to_print += 'P({}|{},state) = {}\t'.format(e_symbol[1], e_symbol[0], prob_by_state[emission_ind])
 			
@@ -709,12 +681,15 @@ def save_states(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max):
 			to_print = 'transitions: '
 			
 			for e_symbol in e_symbols:
-				sample_history = invepsilon[state].keys()[0]
-				
-				if len(sample_history[0]) == L_max - 1:
-					to_state = epsilon.get((sample_history[0] + e_symbol[0], sample_history[1] + e_symbol[1]), 'NULL')
-				else:
-					to_state = epsilon.get((sample_history[0][1:] + e_symbol[0], sample_history[1][1:] + e_symbol[1]), 'NULL')
+				# sample_history = invepsilon[state].keys()[0]
+				for sample_history in invepsilon[state].keys():
+					if len(sample_history[0]) == L_max - 1:
+						to_state = epsilon.get((sample_history[0] + e_symbol[0], sample_history[1] + e_symbol[1]), 'NULL')
+					else:
+						to_state = epsilon.get((sample_history[0][1:] + e_symbol[0], sample_history[1][1:] + e_symbol[1]), 'NULL')
+
+					if to_state != 'NULL':
+						break
 				
 				to_print += 'T(({}, {})) = {}\t'.format(e_symbol[0], e_symbol[1], printing_lookup[to_state])
 			
@@ -723,7 +698,7 @@ def save_states(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max):
 			wfile.write('P(State) = ...')
 			
 			wfile.write('\n\n')
-def print_transitions(epsilon, invepsilon):
+def print_transitions(epsilon, invepsilon, L_max):
 	"""
 	For a given partition of histories of length
 	L_max or smaller, print the transitions
@@ -1493,7 +1468,9 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 							
 									epsilon[new_history] = state
 									invepsilon[state][new_history] = True
-								
+									
+									# REMOVING THE BLOCK BELOW IS A CHANGE I MADE ON 151018, SINCE I THINK 
+									# THIS MIGHT OVERCOUNT THE COUNTS IN THE MORPHS WHEN WE DON'T SPLIT:
 									for emission_ind in range(len(e_symbols)):
 										morph_by_state[state][emission_ind] += morph_by_history[emission_ind]
 					if all_distinct:
@@ -1527,6 +1504,14 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 	for hist in hists:
 		if len(hist[0]) < L_max - 1:	
 			state = epsilon[hist]
+
+			###
+			# I added this on 151018 to account for the possible (???) overcounting of histories
+			# of length shorter than L_max - 1 that were not removed without including this line:
+			hist_morph = [word_lookup_fut[('{}{}'.format(hist[0], e_symbol[0]), '{}{}'.format(hist[1], e_symbol[1]))] for e_symbol in e_symbols]
+			for output_ind in range(len(e_symbols)):
+				morph_by_state[state][output_ind] -= hist_morph[output_ind]
+			###
 	
 			epsilon.pop(hist)
 			invepsilon[state].pop(hist)
@@ -1539,7 +1524,7 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 	for state in states:
 		if len(invepsilon[state]) == 0:
 			if verbose:
-				print 'Found one!'
+				print 'Found an empty state. Removing the empty state.'
 			remove_state(state, epsilon, invepsilon, morph_by_state)
 
 	# Save the causal states prior to any attempt at removing transients or determinizing.
@@ -1661,9 +1646,12 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 								to_split.append(xn) # xn transitions like xa, so put in the new state.
 			
 					if len(to_split) > 0: # We have found histories that need to be split.
-						# print 'The pilot history is {}'.format(x0)
-				
-						# print 'Splitting out the history {} on emission symbol {}.\nThese transition to state {} instead of state {}'.format(to_split, e_symbol, xa_to_state, x0_to_state)
+						if verbose:
+							print 'The pilot history is {}'.format(x0)
+					
+							print 'Splitting out the history {} on emission symbol {}.\nThese transition to state {} instead of state {}'.format(to_split, e_symbol, xa_to_state, x0_to_state)
+
+							# ipdb.set_trace()
 				
 						recursive = False
 						has_split = True
@@ -1690,7 +1678,12 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 							# 			candidates[child] = True
 							# else:
 							# 	pass
-		
+
+						# ipdb.set_trace()
+						
+						removal_count_by_history = Counter()
+						removal_count = 0
+
 						for candidate in candidates:
 							epsilon[candidate] = num_states
 							invepsilon[num_states][candidate] = True
@@ -1703,6 +1696,18 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 								morph_by_state[num_states][emission_ind] += morph_by_history[emission_ind]
 
 								morph_by_state[state][emission_ind] -= morph_by_history[emission_ind]
+
+								if morph_by_history[emission_ind] > 0:
+									# print("Removed {} from state {}".format(e_symbols[emission_ind], state))
+
+									removal_count_by_history[e_symbols[emission_ind]] -= 1
+
+									removal_count += 1
+
+						# print("Removed a total of {} counts.".format(removal_count))
+
+						# ipdb.set_trace()
+
 						num_states += 1
 				
 						# print 'Made it to a breaking point.'
@@ -3644,7 +3649,11 @@ def filter_and_pred_probs_nonsynch(stringX, stringY, machine_fname, transducer_f
 
 	return pred_probs_by_time, cur_states_by_time
 
-def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg, M_states_to_index = None, T_states_to_index = None, M_trans = None, T_trans = None, stationary_dist_mixed = None, stationary_dist_eT = None):
+
+# This version of filter_and_pred_probs* will throw an error when a forbidden transition is observed,
+# rather than attempt to restart the synchronization at each forbidden transition.
+
+def filter_and_pred_probs_breakforbidden(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg, M_states_to_index = None, T_states_to_index = None, M_trans = None, T_trans = None, stationary_dist_mixed = None, stationary_dist_eT = None):
 	"""
 	Given an epsilon-machine for the input process, an
 	epsilon-transducer for the input-output process, 
@@ -3851,11 +3860,393 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 
 		# print(t, T_state_from, stringX[:t+1], stringY[:t+1])
 
-		T_state_to, pT_to = T_trans.get((T_state_from, x, y), (None, 0))
+		T_state_to_new, pT_to = T_trans.get((T_state_from, x, y), (None, 0))
+
+		if T_state_to_new is None:
+			assert 0 == 1, "A forbidden transition was encountered in filtering the time series."
+
+		T_state_to = T_state_to_new
 
 		T_state_from = T_state_to
 
 		cur_states_by_time[t, T_states_to_index[T_state_from]] = 1
+
+	return pred_probs_by_time, cur_states_by_time
+
+def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg, M_states_to_index = None, T_states_to_index = None, M_trans = None, T_trans = None, stationary_dist_mixed = None, stationary_dist_eT = None, verbose_filtering_errors = False):
+	"""
+	Given an epsilon-machine for the input process, an
+	epsilon-transducer for the input-output process, 
+	an input past stringX, and an output past stringY,
+	predict_presynch_eT returns the predictive distribution
+		P(Yt = y | Xt = stringX[-1], Xpast = stringX, Ypast = stringY)
+	potentially *before* filtering on the past synchronizes to
+	one causal state.
+
+	This version also *restarts* filtering when a forbidden
+	transition is observed, as if filtering from that time
+	onward.
+
+	Parameters
+	----------
+	stringX : string
+			The input past, including the present.
+	stringY : string
+			The output past, not including the present.
+	machine_fname : string
+			The path to the epsilon-machine in dot format.
+	transducer_fname : string
+			The path to the epsilon-transducer in dot format.
+	axs : list
+			The input process alphabet.
+	ays : list
+			The output process alphabet.
+	inf_alg : string
+			The inference algorithm used to estimate the machine.
+			One of {'CSSR', 'transCSSR'}
+
+	Returns
+	-------
+	pred_probs : numpy array
+			The probability of the ays, given
+			stringX and stringY.
+	cur_states : list
+			The current causal states the process could
+			be in, given stringX and stringY.
+
+	Notes
+	-----
+	Any notes go here.
+
+	Examples
+	--------
+	>>> import module_name
+	>>> # Demonstrate code here.
+
+	"""
+
+	# Compute the stationary distributions over the (non-minimal) states of the joint (input, output) process and the
+	# (minimal) states of the input-output transducer.
+	
+	if M_states_to_index == None or T_states_to_index == None or M_trans == None or T_trans == None or stationary_dist_mixed == None or stationary_dist_eT == None: # Only recompute these if we need to.
+		P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg)
+		
+		T_states = T_states_to_index.keys()
+		M_states = M_states_to_index.keys()
+		
+		stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
+	else:
+		T_states = T_states_to_index.keys()
+		M_states = M_states_to_index.keys()
+
+	# Compute finite-L predictive probabilities:
+	# 
+	# P(Y_{L+1} = y_{L+1} | X_{L+1} = x_{L+1}, X_{1}^{L} = x_{1}^{L}, Y_{1}^{L} = y_{1}^{L})
+
+	# P(X_{1}^{L}, Y_{1}^{L}) and
+	# P(X_{1}^{L+1}, Y_{1}^{L+1}).
+
+	p_joint_string_L_by_time = numpy.zeros(len(stringX)+1)
+	p_joint_string_Lp1_by_time = numpy.zeros((len(stringX)+1, len(ays)))
+
+	# P(X_{1}^{L}) and
+	# P(X_{1}^{L+1})
+
+	p_input_string_L_by_time = numpy.zeros(len(stringX)+1)
+	p_input_string_Lp1_by_time = numpy.zeros(len(stringX)+1)
+
+	# The possible transducer causal states, where
+	# cur_states_by_time[t, :] is the possible states
+	# at time t.
+	
+	cur_states_by_time = numpy.zeros((len(stringX), len(T_states)), dtype = numpy.int16)
+
+	# The desired predictive probabilities:
+	# P(Y_{t} = y | X_{t} = x, S_{t - 1} = s)
+	# for y in ays.
+
+	pred_probs_by_time = numpy.zeros((len(stringX), len(ays)))
+
+	# The list of mixed states, given as integers.
+
+	mixed_states_array = numpy.arange(len(stationary_dist_mixed))
+
+	# Which of the mixed states are still active.
+
+	active_mixed_states_boolean = stationary_dist_mixed > 0
+
+	# Accumulate the product of the transition probabilities
+	# for the input-output eT and input eM started from a particular 
+	# mixed state:
+	#
+	# \prod_{t = 1}^{L+1} T_{s^{T}_{t-1}}^{(y_{t} \mid x_{t})}
+	# and
+	# \prod_{t = 1}^{L+1} T_{s^{M}_{t-1}}^{(x_{t})}.
+
+	p_eT_mixed = numpy.ones(len(stationary_dist_mixed))
+	p_eM_mixed = numpy.ones(len(stationary_dist_mixed))
+
+	# Store the current "from states" for each of the mixed
+	# states. 
+
+	T_state_from_mixed = ['' for i in range(len(stationary_dist_mixed))]
+	M_state_from_mixed = ['' for i in range(len(stationary_dist_mixed))]
+
+	for start_state_index in mixed_states_array[active_mixed_states_boolean]:
+		T_start_state = T_states[int(numpy.floor(start_state_index/float(len(M_states))))]
+		M_start_state = M_states[int(start_state_index - numpy.floor(start_state_index/float(len(M_states)))*len(M_states))]
+
+		T_state_from_mixed[start_state_index] = T_start_state
+		M_state_from_mixed[start_state_index] = M_start_state
+
+	is_synched = False # We start out non-synchronized to the causal state
+	t_unsynched = 0 # The first index for which we are unsynchronized.
+
+	t = 0
+
+	while t < len(stringX):
+		if not is_synched:
+			if verbose_filtering_errors:
+				print("Still de-synchronized at t = {}".format(t))
+			for mixed_state in mixed_states_array[active_mixed_states_boolean]:
+				T_state_from = T_state_from_mixed[mixed_state]
+				M_state_from = M_state_from_mixed[mixed_state]
+
+				# If we are starting at the time of becoming unsychronized,
+				# we start over by finding P(Y_{t_unsynched} | X_{t_unsynched})
+				# as if we had not seen any of the past. This allows us to
+				# re-synchronize, if possible, or continue to predict the
+				# memoryless probabilities.
+
+				if t == t_unsynched:
+					# Compute P(Y_{t_unsynched} | X_{t_unsynched}) by accumulating
+					# over P(Y_{t_unsynched} | X_{t_unsynched}, S_{t_unsynched - 1} P(S_{t_unsynched - 1} | X_{t_unsynched}))
+
+					x = stringX[t_unsynched]
+
+					M_state_to, pM_to = M_trans.get((M_state_from, x), (None, 0))
+				
+					if pM_to == 0:
+						p_eM_new = 0.
+					else:
+						p_eM_new = p_eM_mixed[mixed_state] * pM_to
+
+					if p_eM_new != 0:
+						for ay_ind, ay in enumerate(ays):
+							y = ay
+						
+							T_state_to, pT_to = T_trans.get((T_state_from, x, y), (None, 0))
+					
+							if pT_to == 0:
+								p_eT_new = 0.
+							else:
+								p_eT_new = p_eT_mixed[mixed_state] * pT_to
+					
+							p_joint_string_Lp1_by_time[t, ay_ind] += p_eT_new*p_eM_new*stationary_dist_mixed[mixed_state]
+						p_input_string_Lp1_by_time[t] += p_eM_new*stationary_dist_mixed[mixed_state]
+
+						pred_probs_by_time[t, :] = p_joint_string_Lp1_by_time[t, :] / p_input_string_Lp1_by_time[t]
+
+					# Update the L word probabilities and current causal state
+					# based on the current input-output symbol (x, y).
+
+					y = stringY[t]
+			
+					T_state_to, pT_to = T_trans.get((T_state_from, x, y), (None, 0))
+
+					if T_state_to is None:
+						active_mixed_states_boolean[mixed_state] = None
+					elif T_state_to is not None:		
+						if pT_to == 0:
+							p_eT_mixed[mixed_state] = 0.
+						else:
+							p_eT_mixed[mixed_state] = p_eT_mixed[mixed_state] * pT_to
+				
+						T_state_from = T_state_to
+				
+						M_state_to, pM_to = M_trans.get((M_state_from, x), (None, 0))
+				
+						if pM_to == 0:
+							p_eM_mixed[mixed_state] = 0.
+						else:
+							p_eM_mixed[mixed_state] = p_eM_mixed[mixed_state] * pM_to
+
+						M_state_from = M_state_to
+
+						T_state_from_mixed[mixed_state] = T_state_from
+						M_state_from_mixed[mixed_state] = M_state_from
+					
+						if p_eT_mixed[mixed_state] != 0:
+							cur_states_by_time[t, T_states_to_index[T_state_to]] = 1
+
+						p_joint_string_L_by_time[t+1] += p_eT_mixed[mixed_state]*p_eM_mixed[mixed_state]*stationary_dist_mixed[mixed_state]
+						p_input_string_L_by_time[t+1] += p_eM_mixed[mixed_state]*stationary_dist_mixed[mixed_state]
+
+				# If we're still unsychronized, but not at the time of initially becoming unsychronized,
+				# we can use the past states and input-output pair to continue accumulating the
+				# probabilities for the predictive probability.
+				else:
+					if T_state_from is not None:
+						# Compute the predictive probabilities P(Y_{t} | X_{t}, S_{t-1}) by
+						# summing over all the possible paths along the causal states.
+
+						x = stringX[t]
+
+						M_state_to, pM_to = M_trans.get((M_state_from, x), (None, 0))
+				
+						if pM_to == 0:
+							p_eM_new = 0.
+						else:
+							p_eM_new = p_eM_mixed[mixed_state] * pM_to
+
+						p_input_string_Lp1_by_time[t] += p_eM_new*stationary_dist_mixed[mixed_state]
+
+						for ay_ind, ay in enumerate(ays):
+							y = ay
+						
+							T_state_to, pT_to = T_trans.get((T_state_from, x, y), (None, 0))
+					
+							if pT_to == 0:
+								p_eT_new = 0.
+							else:
+								p_eT_new = p_eT_mixed[mixed_state] * pT_to
+					
+							p_joint_string_Lp1_by_time[t, ay_ind] += p_eT_new*p_eM_new*stationary_dist_mixed[mixed_state]
+
+						if p_input_string_Lp1_by_time[t] == 0 or p_input_string_L_by_time[t] == 0 or p_joint_string_L_by_time[t] / p_input_string_L_by_time[t] == 0:
+							# print 'This input/output pair is not allowed by the transducer.'
+							
+							pass
+						else:
+							pred_probs_by_time[t, :] = (p_joint_string_Lp1_by_time[t, :] / p_input_string_Lp1_by_time[t])/(p_joint_string_L_by_time[t] / p_input_string_L_by_time[t])
+
+						# Update the current possible causal states based on the input-output symbol
+						# observed at this time.
+
+						x = stringX[t]
+						y = stringY[t]
+				
+						T_state_to, pT_to = T_trans.get((T_state_from, x, y), (None, 0))
+
+						if T_state_to is None:
+							active_mixed_states_boolean[mixed_state] = None
+						elif T_state_to is not None:		
+							if pT_to == 0:
+								p_eT_mixed[mixed_state] = 0.
+							else:
+								p_eT_mixed[mixed_state] = p_eT_mixed[mixed_state] * pT_to
+					
+							T_state_from = T_state_to
+					
+							M_state_to, pM_to = M_trans.get((M_state_from, x), (None, 0))
+					
+							if pM_to == 0:
+								p_eM_mixed[mixed_state] = 0.
+							else:
+								p_eM_mixed[mixed_state] = p_eM_mixed[mixed_state] * pM_to
+
+							M_state_from = M_state_to
+
+							T_state_from_mixed[mixed_state] = T_state_from
+							M_state_from_mixed[mixed_state] = M_state_from
+						
+							if p_eT_mixed[mixed_state] != 0:
+								cur_states_by_time[t, T_states_to_index[T_state_to]] = 1
+
+							p_joint_string_L_by_time[t+1] += p_eT_mixed[mixed_state]*p_eM_mixed[mixed_state]*stationary_dist_mixed[mixed_state]
+							p_input_string_L_by_time[t+1] += p_eM_mixed[mixed_state]*stationary_dist_mixed[mixed_state]
+
+			num_active_states = numpy.sum(cur_states_by_time[t, :])
+
+			if num_active_states == 1.:
+				t_synched = t
+				is_synched = True
+
+				if verbose_filtering_errors:
+					print("Synchronized at t = {}...".format(t_synched))
+
+				t += 1
+			elif num_active_states == 0.: # We've followed a path that isn't allowed by *any* of the mixed states, so we need to restart as if we de-sychronized.
+				is_synched = False # We start out non-synchronized to the causal state
+				t_unsynched = t # The first index for which we are unsynchronized.
+
+				if verbose_filtering_errors:
+					print("Forcing de-synchronization at t = {}...".format(t_unsynched))
+
+				# p_joint_string_L_by_time = numpy.zeros(len(stringX))
+				# p_joint_string_Lp1_by_time = numpy.zeros((len(stringX), len(ays)))
+
+				# p_input_string_L_by_time = numpy.zeros(len(stringX))
+				# p_input_string_Lp1_by_time = numpy.zeros(len(stringX))
+
+				active_mixed_states_boolean = stationary_dist_mixed > 0
+
+				p_eT_mixed = numpy.ones(len(stationary_dist_mixed))
+				p_eM_mixed = numpy.ones(len(stationary_dist_mixed))
+
+				T_state_from_mixed = ['' for i in range(len(stationary_dist_mixed))]
+				M_state_from_mixed = ['' for i in range(len(stationary_dist_mixed))]
+
+				for start_state_index in mixed_states_array[active_mixed_states_boolean]:
+					T_start_state = T_states[int(numpy.floor(start_state_index/float(len(M_states))))]
+					M_start_state = M_states[int(start_state_index - numpy.floor(start_state_index/float(len(M_states)))*len(M_states))]
+
+					T_state_from_mixed[start_state_index] = T_start_state
+					M_state_from_mixed[start_state_index] = M_start_state
+			else:
+				t += 1
+		elif is_synched:
+			which_state = numpy.argmax(cur_states_by_time[t-1,:])
+
+			T_state_from = T_states[which_state]
+
+			x = stringX[t]
+			for ay_ind, ay in enumerate(ays):
+				y = ay
+			
+				T_state_to, pT_to = T_trans.get((T_state_from, x, y), (None, 0))
+
+				pred_probs_by_time[t, ay_ind] = pT_to
+
+			y = stringY[t]
+
+			# print(t, T_state_from, stringX[:t+1], stringY[:t+1])
+
+			T_state_to_new, pT_to = T_trans.get((T_state_from, x, y), (None, 0))
+
+			if T_state_to_new is None:
+				is_synched = False # We start out non-synchronized to the causal state
+				t_unsynched = t # The first index for which we are unsynchronized.
+
+				if verbose_filtering_errors:
+					print("De-synchronized at t = {}...".format(t_unsynched))
+
+				# p_joint_string_L_by_time = numpy.zeros(len(stringX))
+				# p_joint_string_Lp1_by_time = numpy.zeros((len(stringX), len(ays)))
+
+				# p_input_string_L_by_time = numpy.zeros(len(stringX))
+				# p_input_string_Lp1_by_time = numpy.zeros(len(stringX))
+
+				active_mixed_states_boolean = stationary_dist_mixed > 0
+
+				p_eT_mixed = numpy.ones(len(stationary_dist_mixed))
+				p_eM_mixed = numpy.ones(len(stationary_dist_mixed))
+
+				T_state_from_mixed = ['' for i in range(len(stationary_dist_mixed))]
+				M_state_from_mixed = ['' for i in range(len(stationary_dist_mixed))]
+
+				for start_state_index in mixed_states_array[active_mixed_states_boolean]:
+					T_start_state = T_states[int(numpy.floor(start_state_index/float(len(M_states))))]
+					M_start_state = M_states[int(start_state_index - numpy.floor(start_state_index/float(len(M_states)))*len(M_states))]
+
+					T_state_from_mixed[start_state_index] = T_start_state
+					M_state_from_mixed[start_state_index] = M_start_state
+			else:
+				T_state_to = T_state_to_new
+
+				cur_states_by_time[t, T_states_to_index[T_state_to]] = 1
+
+				t += 1
 
 	return pred_probs_by_time, cur_states_by_time
 
