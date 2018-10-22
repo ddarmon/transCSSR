@@ -10,8 +10,6 @@ from matplotlib.colors import LinearSegmentedColormap
 
 import matplotlib.pyplot as plt
 
-import ipdb
-
 # Dependencies: numpy, scipy, pandas, igraph, pylab, matplotlib
 
 import numpy
