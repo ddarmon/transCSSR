@@ -20,7 +20,7 @@ inf_alg = 'transCSSR'
 
 HLs, hLs, hmu, ELs, E, Cmu, etas_matrix = compute_ict_measures(machine_fname, axs, inf_alg, L_max = 50, to_plot = True)
 
-print('Cmu = {}\nH[X_{{0}}] = {}\nhmu = {}\nE   = {}'.format(Cmu, HLs[0], hmu, E))
+print(('Cmu = {}\nH[X_{{0}}] = {}\nhmu = {}\nE   = {}'.format(Cmu, HLs[0], hmu, E)))
 
 def Hp(p):
 	x = numpy.array([p, 1 - p])

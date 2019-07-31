@@ -87,8 +87,8 @@ inf_alg = 'transCSSR'
 
 P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg = inf_alg)
 
-T_states = T_states_to_index.keys()
-M_states = M_states_to_index.keys()
+T_states = list(T_states_to_index.keys())
+M_states = list(M_states_to_index.keys())
 
 stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
 
@@ -125,7 +125,7 @@ for M_start_state, T_start_state in itertools.product(M_states, T_states):
 
 	prop_ones = count_ones / num_sims
 
-	print prop_ones
+	print(prop_ones)
 
 	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	#
@@ -135,7 +135,7 @@ for M_start_state, T_start_state in itertools.product(M_states, T_states):
 	#
 	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-	print('\nStarting from input eM state {} and transducer state {}...'.format(M_start_state, T_start_state))
+	print(('\nStarting from input eM state {} and transducer state {}...'.format(M_start_state, T_start_state)))
 	M_state_from = M_start_state
 	T_state_from = T_start_state
 
@@ -163,7 +163,7 @@ for M_start_state, T_start_state in itertools.product(M_states, T_states):
 		joint_string_prods.append({})
 		joint_string_states.append({})
 
-		for xword, yword in joint_string_prods[-2].keys():
+		for xword, yword in list(joint_string_prods[-2].keys()):
 			for ax_ind, ax in enumerate(axs):
 				x = ax
 				for ay_ind, ay in enumerate(ays):
@@ -214,7 +214,7 @@ for M_start_state, T_start_state in itertools.product(M_states, T_states):
 	pred_probs_by_L = numpy.zeros((L_max-1, len(ays)))
 
 	for L in range(1,L_max):
-		for xword, yword in joint_string_prods[L-1].keys():
+		for xword, yword in list(joint_string_prods[L-1].keys()):
 			for x in axs:
 				for ay_ind, y in enumerate(ays):
 					p_prod = joint_string_prods[L].get((xword + x, yword + y), 0.0)
@@ -223,7 +223,7 @@ for M_start_state, T_start_state in itertools.product(M_states, T_states):
 
 		pred_probs_by_L[L-1, :] = pred_probs_by_L[L-1, :]/numpy.sum(pred_probs_by_L[L-1, :])
 
-		print(pred_probs_by_L[L-1, :])
+		print((pred_probs_by_L[L-1, :]))
 
 	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	#

@@ -14,3 +14,5 @@ This implementation has been tested on Mac OS X 10.10.3, but should work on any 
 These packages may be installed individually. A useful collection of these and related libraries for scientific computing with Python may be installed using [Enthought](https://store.enthought.com) or [Anaconda](https://www.continuum.io/downloads).
 
 Visualization of the epsilon-machines requires [Graphviz](http://graphviz.org) or similar software for reading [dot](http://en.wikipedia.org/wiki/DOT_(graph_description_language)) files.
+
+**NOTE:** This version of transCSSR is for use with Python 3.7+. A legacy version for use with Python 2.7 is hosted [here](https://github.com/ddarmon/transCSSR2).

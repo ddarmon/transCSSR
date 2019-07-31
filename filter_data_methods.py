@@ -8,7 +8,7 @@ def compute_precision(ts_true, ts_prediction, verbose = False):
 	denominator = 0	 # In precision, the denominator is the total number
 					 # of predicted positives.
 
-	for char_ind in xrange(len(ts_true)):
+	for char_ind in range(len(ts_true)):
 		if ts_prediction[char_ind] == 'N':
 			pass
 		else:
@@ -21,7 +21,7 @@ def compute_precision(ts_true, ts_prediction, verbose = False):
 
 	if denominator == 0:
 		if verbose:
-			print 'Warning: you didn\'t predict any tweets! By convention, set precision to 1.'
+			print('Warning: you didn\'t predict any tweets! By convention, set precision to 1.')
 
 		precision = 1
 	else:
@@ -35,7 +35,7 @@ def compute_recall(ts_true, ts_prediction, verbose = False):
 	denominator = 0	 # In precision, the denominator is the total number
 					 # of true positives.
 
-	for char_ind in xrange(len(ts_true)):
+	for char_ind in range(len(ts_true)):
 		if int(ts_true[char_ind]) == 1: # The true value is a 1
 			denominator += 1
 			
@@ -48,7 +48,7 @@ def compute_recall(ts_true, ts_prediction, verbose = False):
 
 	if denominator == 0:
 		if verbose:
-			print 'Warning: no tweets were in this day! By convention, set recall to 1.'
+			print('Warning: no tweets were in this day! By convention, set recall to 1.')
 
 		recall = 1
 	else:
@@ -60,7 +60,7 @@ def compute_tv(ts_true, ts_prediction):
 	running_sum = 0
 	count = 0
 	
-	for char_ind in xrange(len(ts_true)):
+	for char_ind in range(len(ts_true)):
 		if ts_prediction[char_ind] == None:
 			pass
 		else:
@@ -77,7 +77,7 @@ def compute_metrics(ts_true, ts_prediction, metric = None):
 	if metric == None or metric == 'accuracy': # By default, compute accuracy rate.
 		correct = 0
 
-		for char_ind in xrange(len(ts_true)):
+		for char_ind in range(len(ts_true)):
 			if ts_prediction[char_ind] == 'N': # We didn't predict, so don't count towards correct.
 				pass
 			else:
@@ -113,6 +113,6 @@ def compute_metrics(ts_true, ts_prediction, metric = None):
 		
 		return tv
 	else:
-		print "Please choose one of \'accuracy\', \'precision\', \'recall\', or \'F\'."
+		print("Please choose one of \'accuracy\', \'precision\', \'recall\', or \'F\'.")
 
 		return None

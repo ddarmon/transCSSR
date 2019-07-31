@@ -22,17 +22,17 @@ def print_stochastic_matrix(past, axs, ays):
 			else:
 				cur_row += '\t' + str(word_lookup_fut[(xpast + ax, ypast + ay)]/float(word_lookup_marg[(xpast + ax, ypast)]))
 		
-		print cur_row + '\n'
+		print(cur_row + '\n')
 	
 	
-	print '\n\n'
+	print('\n\n')
 	
 	for ax in axs:
 		cur_row = ''
 		for ay in ays:
 			cur_row += '\t' + str(word_lookup_fut[(xpast + ax, ypast + ay)])
 		
-		print cur_row + '\n'
+		print(cur_row + '\n')
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #
@@ -152,7 +152,7 @@ word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, s
 
 epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, verbose = True)
 
-print 'The epsilon-transducer has {} states.'.format(len(invepsilon))
+print('The epsilon-transducer has {} states.'.format(len(invepsilon)))
 
 # os.system('open transCSSR_results/mydot-det_transients.dot'.format(Xt_name, Yt_name))
 # os.system('open transCSSR_results/mydot-det_recurrent.dot'.format(Xt_name, Yt_name))
@@ -160,7 +160,7 @@ print 'The epsilon-transducer has {} states.'.format(len(invepsilon))
 if len(invepsilon) < 30:
 	os.system('open transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name))
 else:
-	print 'Warning: The epsilon-transducer has {} states, so we will not open the dot file.'
+	print('Warning: The epsilon-transducer has {} states, so we will not open the dot file.')
 
 os.system('open transCSSR_results/{}+{}.dat_results'.format(Xt_name, Yt_name))
 

@@ -90,7 +90,7 @@ word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, s
 
 epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha)
 
-print 'The epsilon-transducer has {} states.'.format(len(invepsilon))
+print('The epsilon-transducer has {} states.'.format(len(invepsilon)))
 
 print_morph_by_states(morph_by_state, axs, ays, e_symbols)
 
@@ -104,7 +104,7 @@ pred_probs_by_time, cur_states_by_time = filter_and_pred_probs(stringX, stringY,
 pred_probs_by_time_break, cur_states_by_time_break = filter_and_pred_probs_breakforbidden(stringX, stringY, machine_fname, transducer_fname, axs, ays, inf_alg)
 
 for t in range(30):
-	print(t, stringY[t], filtered_probs[t], pred_probs_by_time_break[t, 1], pred_probs_by_time[t, 1])
+	print((t, stringY[t], filtered_probs[t], pred_probs_by_time_break[t, 1], pred_probs_by_time[t, 1]))
 
 import matplotlib.pyplot as plt
 plt.ion()

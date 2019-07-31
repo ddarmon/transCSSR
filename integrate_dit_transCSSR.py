@@ -154,7 +154,7 @@ for t in range(len(stringX)):
 
 startTime = time.time()
 histories, cCounts, hCounts, alphabet = dit.inference.counts.counts_from_data(data = arrayJ, hLength = L_max+1, fLength = 1, marginals = True, standardize = True)
-print ('The dit counting took {0} seconds...'.format(time.time() - startTime))
+print(('The dit counting took {0} seconds...'.format(time.time() - startTime)))
 
 startTime = time.time()
 word_lookup_fut = defaultdict(int)
@@ -171,7 +171,7 @@ for word_ind, word_dit in enumerate(histories):
 
 	word_lookup_fut[word_x, word_y] = hCounts[word_ind]
 
-for joint_words in word_lookup_fut.keys():
+for joint_words in list(word_lookup_fut.keys()):
 	if len(joint_words[0]) <= L_max:
 		for ax in axs:
 			c = 0
@@ -180,11 +180,11 @@ for joint_words in word_lookup_fut.keys():
 				c += word_lookup_fut[joint_words[0] + ax, joint_words[1] + ay]
 
 			word_lookup_marg[joint_words[0] + ax, joint_words[1]] = c
-print ('Unpacking dit to transCSSR took {0} seconds...'.format(time.time() - startTime))
+print(('Unpacking dit to transCSSR took {0} seconds...'.format(time.time() - startTime)))
 
 startTime = time.time()
 word_lookup_marg_transCSSR, word_lookup_fut_transCSSR = estimate_predictive_distributions(stringX, stringY, L_max)
-print ('The transCSSR counting took {0} seconds...'.format(time.time() - startTime))
+print(('The transCSSR counting took {0} seconds...'.format(time.time() - startTime)))
 
 # for word in word_lookup_fut_transCSSR.keys()[:50]:
 # 	print(word, word_lookup_fut_transCSSR[word], word_lookup_fut[word])

@@ -232,7 +232,7 @@ def get_connected_component(epsilon, invepsilon, e_symbols, L_max):
 	>>> # Demonstrate code here.
 
 	"""
-	states = invepsilon.keys()
+	states = list(invepsilon.keys())
 
 	state_matrix = numpy.zeros((len(states), len(states)))
 	
@@ -255,11 +255,11 @@ def get_connected_component(epsilon, invepsilon, e_symbols, L_max):
 		need_Lmax = True # Whether or not we need to use the length L_max histories in
 						 # defining the transition structure.
 		
-		for hist in invepsilon[state].keys():
+		for hist in list(invepsilon[state].keys()):
 			if len(hist[0]) == L_max - 1:
 				need_Lmax = False
 		
-		for hist in invepsilon[state].keys():
+		for hist in list(invepsilon[state].keys()):
 			if len(hist[0]) == L_max:
 				if need_Lmax:
 					for e_symbol in e_symbols:
@@ -372,11 +372,11 @@ def draw_dot(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max):
 		
 		seen_transition = {}
 		
-		for state in invepsilon.keys():
+		for state in list(invepsilon.keys()):
 			need_Lmax = True # Whether or not we need to use the length L_max histories in
 							 # defining the transition structure.
 			
-			for hist in invepsilon[state].keys():
+			for hist in list(invepsilon[state].keys()):
 				if len(hist[0]) == L_max - 1:
 					need_Lmax = False
 			
@@ -499,7 +499,7 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 		
 		W = defaultdict(str) # The stochastic matrix, stored as a string, by state
 		
-		for state in invepsilon.keys():
+		for state in list(invepsilon.keys()):
 			for history in invepsilon[state]:
 				for ay in ays:
 					for ax in axs:
@@ -526,8 +526,8 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 									else:
 										W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, ptrans)
 		
-		for from_state in invepsilon.keys():
-			for to_state in invepsilon.keys():
+		for from_state in list(invepsilon.keys()):
+			for to_state in list(invepsilon.keys()):
 				if exists_transition.get((from_state, to_state), False):
 					wfile.write('{} -> {} [label = \"{}\"];\n'.format(numeric_to_alpha(printing_lookup[from_state]), numeric_to_alpha(printing_lookup[to_state]), W[(from_state, to_state)]))
 		
@@ -564,9 +564,9 @@ def numeric_to_alpha(value):
 	# map it to {A, B, ..., Z, AA, ...}.
 	
 	remainder = value%26
-	integer_part = value/26
+	integer_part = value//26
 	
-	return (integer_part + 1)*string.uppercase[remainder]
+	return (integer_part + 1)*string.ascii_uppercase[remainder]
 
 def save_states(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max):
 	"""
@@ -680,7 +680,7 @@ def save_states(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max):
 			
 			for e_symbol in e_symbols:
 				# sample_history = invepsilon[state].keys()[0]
-				for sample_history in invepsilon[state].keys():
+				for sample_history in list(invepsilon[state].keys()):
 					if len(sample_history[0]) == L_max - 1:
 						to_state = epsilon.get((sample_history[0] + e_symbol[0], sample_history[1] + e_symbol[1]), 'NULL')
 					else:
@@ -731,8 +731,8 @@ def print_transitions(epsilon, invepsilon, L_max):
 
 	"""
 
-	for state in invepsilon.keys():
-		print 'On precausal state {}'.format(state) + '\n' + 10*'='
+	for state in list(invepsilon.keys()):
+		print('On precausal state {}'.format(state) + '\n' + 10*'=')
 		for history in invepsilon[state]:
 			if len(history[0]) == L_max-1:
 				for ay in ays:
@@ -742,7 +742,7 @@ def print_transitions(epsilon, invepsilon, L_max):
 						if to_state == -1:
 							pass
 						else:
-							print 'History {} transitions to state {} on emission {}'.format(history, to_state, (ax, ay))
+							print('History {} transitions to state {} on emission {}'.format(history, to_state, (ax, ay)))
 	
 
 def remove_transients(epsilon, invepsilon, morph_by_state, e_symbols, L_max, memoryless = False, verbose = False):
@@ -801,7 +801,7 @@ def remove_transients(epsilon, invepsilon, morph_by_state, e_symbols, L_max, mem
 		clusters, state_matrix, trans_dict, states_to_index, index_to_states = get_connected_component(epsilon, invepsilon, e_symbols, L_max)
 	
 	if verbose:
-		print clusters.membership
+		print(clusters.membership)
 	
 	remove_states = {}
 	
@@ -822,11 +822,11 @@ def remove_transients(epsilon, invepsilon, morph_by_state, e_symbols, L_max, mem
 		clusters, state_matrix, trans_dict, states_to_index, index_to_states = get_connected_component(epsilon, invepsilon, e_symbols, L_max)
 	
 	if verbose:
-		print clusters.membership
+		print(clusters.membership)
 	
 	# Mode returns two values: the mode, and the count associated with the mode.
 	
-	keep_component, count = map(int, scipy.stats.mode(clusters.membership))
+	keep_component, count = list(map(int, scipy.stats.mode(clusters.membership)))
 	
 	for state_ind, membership in enumerate(clusters.membership):
 		if membership == keep_component:
@@ -914,7 +914,7 @@ def print_morph_by_states(morph_by_state, axs, ays, e_symbols):
 		
 			tot = float(numpy.sum(morph))
 		
-			print 'state = {}, x = {}, P(Yt | Xt, state) = {}'.format(state, axs[x_ind], numpy.divide(morph, tot))
+			print('state = {}, x = {}, P(Yt | Xt, state) = {}'.format(state, axs[x_ind], numpy.divide(morph, tot)))
 
 
 def print_counts(hist, word_lookup_marg, word_lookup_fut, e_symbols):
@@ -944,13 +944,13 @@ def print_counts(hist, word_lookup_marg, word_lookup_fut, e_symbols):
 
 	"""
 	
-	print hist
+	print(hist)
 	
 	counts = [word_lookup_fut[hist[0] + e_symbol[0], hist[1] + e_symbol[1]] for e_symbol in e_symbols]
 	
-	print counts
+	print(counts)
 	
-	print numpy.array(counts)/float(numpy.sum(counts))
+	print(numpy.array(counts)/float(numpy.sum(counts)))
 
 def get_transitions(epsilon, invepsilon, e_symbols, L_max, memoryless = False):
 	"""
@@ -993,7 +993,7 @@ def get_transitions(epsilon, invepsilon, e_symbols, L_max, memoryless = False):
 
 	"""
 	
-	states = invepsilon.keys()
+	states = list(invepsilon.keys())
 	
 	# Also store the allowed transitions as an edge list,
 	# for easier checking. Use a dictionary of the form
@@ -1014,11 +1014,11 @@ def get_transitions(epsilon, invepsilon, e_symbols, L_max, memoryless = False):
 		need_Lmax = True # Whether or not we need to use the length L_max histories in
 						 # defining the transition structure.
 		
-		for hist in invepsilon[state].keys():
+		for hist in list(invepsilon[state].keys()):
 			if len(hist[0]) == L_max - 1:
 				need_Lmax = False
 		
-		for hist in invepsilon[state].keys():
+		for hist in list(invepsilon[state].keys()):
 			if len(hist[0]) == L_max:
 				if need_Lmax:
 					for e_symbol in e_symbols:
@@ -1140,7 +1140,7 @@ def estimate_predictive_distributions(stringX, stringY, L_max, counting_method =
 		Xs = copy.copy(stringX); Ys = copy.copy(stringY)
 		
 		if verbose:
-			print 'Estimating predictive distributions using multi-line.'
+			print('Estimating predictive distributions using multi-line.')
 		
 		if counting_method == 0:
 			for line_ind in range(len(Xs)):
@@ -1192,7 +1192,7 @@ def estimate_predictive_distributions(stringX, stringY, L_max, counting_method =
 		T = Tx
 		
 		if verbose:
-			print 'Estimating predictive distributions.'
+			print('Estimating predictive distributions.')
 
 		if counting_method == 0:
 			for t_ind in range(T-L_max):
@@ -1219,7 +1219,7 @@ def estimate_predictive_distributions(stringX, stringY, L_max, counting_method =
 
 		seen_subword = {}
 
-		histories_by_L = [word_lookup_fut.keys()]
+		histories_by_L = [list(word_lookup_fut.keys())]
 
 		for L_cur in range(L_max, -1, -1):
 			histories_by_L.append([])
@@ -1360,16 +1360,16 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 	# histories of length L_max are reached.
 	
 	if verbose:
-		print 'Homogenizing'
+		print('Homogenizing')
 
 	for L_cur in range(0, L_max):
 		if verbose:
-			print 'L_cur = {}'.format(L_cur)
+			print('L_cur = {}'.format(L_cur))
 			# Go through each causal state.
 	
-			print epsilon
+			print(epsilon)
 	
-		states = copy.deepcopy(invepsilon.keys())
+		states = copy.deepcopy(list(invepsilon.keys()))
 	
 		for state in states:
 			# Grow each history associated with that state
@@ -1402,12 +1402,12 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 								pass
 							else:
 								if verbose:
-									print "Considering the new history ({}, {})".format(new_history[0], new_history[1])
+									print("Considering the new history ({}, {})".format(new_history[0], new_history[1]))
 						
 								morph_by_history = [word_lookup_fut[('{}{}'.format(new_history[0], e_symbol[0]), '{}{}'.format(new_history[1], e_symbol[1]))] for e_symbol in e_symbols]
 					
 								if verbose:
-									print "This history has the morph nu(X_t | X_past) = {}".format(morph_by_history)
+									print("This history has the morph nu(X_t | X_past) = {}".format(morph_by_history))
 								
 								test, pvalue = chisquared_test(morph_by_history, morph_by_state[state], axs, ays, alpha = alpha, test_type = test_type)
 						
@@ -1424,7 +1424,7 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 										cur_best_pvalue = -numpy.Inf
 										cur_best_state = -1
 									
-										altstates = copy.deepcopy(invepsilon.keys())
+										altstates = copy.deepcopy(list(invepsilon.keys()))
 									
 										for altstate in altstates:
 											if altstate == state:
@@ -1488,16 +1488,16 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 							for output_ind in range(len(e_symbols)):
 								morph_by_state[state][output_ind] -= old_morph[output_ind]
 		if verbose:
-			print 'For L_cur = {}, the causal states are:'.format(L_cur)
+			print('For L_cur = {}, the causal states are:'.format(L_cur))
 				# Go through each causal state.
 			for state in invepsilon:
-				print '{}: {}'.format(state, invepsilon[state])
+				print('{}: {}'.format(state, invepsilon[state]))
 	
 	# print_transitions(epsilon, invepsilon)
 	
 	# Remove histories of length < L_max - 1.
 
-	hists = copy.deepcopy(epsilon.keys())
+	hists = copy.deepcopy(list(epsilon.keys()))
 
 	for hist in hists:
 		if len(hist[0]) < L_max - 1:	
@@ -1517,12 +1517,12 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 	# Remove any states that have been made empty by
 	# the removal of smaller histories.
 
-	states = copy.deepcopy(invepsilon.keys())
+	states = copy.deepcopy(list(invepsilon.keys()))
 
 	for state in states:
 		if len(invepsilon[state]) == 0:
 			if verbose:
-				print 'Found an empty state. Removing the empty state.'
+				print('Found an empty state. Removing the empty state.')
 			remove_state(state, epsilon, invepsilon, morph_by_state)
 
 	# Save the causal states prior to any attempt at removing transients or determinizing.
@@ -1566,7 +1566,7 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 
 	# Remove dead histories, i.e. histories that don't transition anywhere.
 
-	histories = copy.deepcopy(epsilon.keys())
+	histories = copy.deepcopy(list(epsilon.keys()))
 
 	# for history in histories:
 	# 	if len(history[0]) == L_max - 1:
@@ -1581,17 +1581,17 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 
 	while not recursive:
 		if verbose:
-			print 'On determinization step {}\n\n\n'.format(determinize_count)
+			print('On determinization step {}\n\n\n'.format(determinize_count))
 	
 		recursive = True
-		states = copy.deepcopy(invepsilon.keys())
+		states = copy.deepcopy(list(invepsilon.keys()))
 	
 		for state in states:
 			if verbose:
-				print 'On state {}'.format(state)
+				print('On state {}'.format(state))
 			has_split = False
 		
-			histories = copy.deepcopy(invepsilon[state].keys())
+			histories = copy.deepcopy(list(invepsilon[state].keys()))
 		
 			trans_to_hist = defaultdict(list) # Takes as a key the transitions occurring, and as a value those histories that
 											  # that make those transitions.
@@ -1645,9 +1645,9 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 			
 					if len(to_split) > 0: # We have found histories that need to be split.
 						if verbose:
-							print 'The pilot history is {}'.format(x0)
+							print('The pilot history is {}'.format(x0))
 					
-							print 'Splitting out the history {} on emission symbol {}.\nThese transition to state {} instead of state {}'.format(to_split, e_symbol, xa_to_state, x0_to_state)
+							print('Splitting out the history {} on emission symbol {}.\nThese transition to state {} instead of state {}'.format(to_split, e_symbol, xa_to_state, x0_to_state))
 
 							# ipdb.set_trace()
 				
@@ -1723,17 +1723,17 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 		# print_transitions(epsilon, invepsilon)
 
 	if verbose:
-		print 'The determinize step had to take place {} times.'.format(determinize_count)
+		print('The determinize step had to take place {} times.'.format(determinize_count))
 
 	# Remove any states that have been made empty by
 	# the removal of smaller histories.
 
-	states = copy.deepcopy(invepsilon.keys())
+	states = copy.deepcopy(list(invepsilon.keys()))
 
 	for state in states:
 		if len(invepsilon[state]) == 0:
 			if verbose:
-				print 'Found one!'
+				print('Found one!')
 			remove_state(state, epsilon, invepsilon, morph_by_state)
 
 	# print_transitions(epsilon, invepsilon)
@@ -2131,7 +2131,7 @@ def load_transition_matrix_transducer(fname):
 					p = float(transition.split('|')[1].split(':')[1])
 					
 					trans_matrix[(from_state, x, y)] = (to_state, p)
-	return trans_matrix, states.keys()
+	return trans_matrix, list(states.keys())
 
 # def load_transition_matrix_machine(fname, inf_alg):
 # 	"""
@@ -2266,7 +2266,7 @@ def load_transition_matrix_machine(fname, inf_alg):
 						p = float(transition.split(':')[1].strip())
 					
 					trans_matrix[(from_state, x)] = (to_state, p)
-	return trans_matrix, states.keys()
+	return trans_matrix, list(states.keys())
 
 def compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg):
 	"""
@@ -2933,13 +2933,13 @@ def predict_presynch_eT_legacy(stringX, stringY, machine_fname, transducer_fname
 	if M_states_to_index == None or T_states_to_index == None or M_trans == None or T_trans == None or stationary_dist_mixed == None or stationary_dist_eT == None: # Only recompute these if we need to.
 		P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg)
 		
-		T_states = T_states_to_index.keys()
-		M_states = M_states_to_index.keys()
+		T_states = list(T_states_to_index.keys())
+		M_states = list(M_states_to_index.keys())
 		
 		stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
 	else:
-		T_states = T_states_to_index.keys()
-		M_states = M_states_to_index.keys()
+		T_states = list(T_states_to_index.keys())
+		M_states = list(M_states_to_index.keys())
 
 	# Compute finite-L predictive probabilities:
 	# 
@@ -3088,13 +3088,13 @@ def predict_presynch_eT(stringX, stringY, machine_fname, transducer_fname, axs, 
 	if M_states_to_index == None or T_states_to_index == None or M_trans == None or T_trans == None or stationary_dist_mixed == None or stationary_dist_eT == None: # Only recompute these if we need to.
 		P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg = inf_alg)
 		
-		T_states = T_states_to_index.keys()
-		M_states = M_states_to_index.keys()
+		T_states = list(T_states_to_index.keys())
+		M_states = list(M_states_to_index.keys())
 		
 		stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
 	else:
-		T_states = T_states_to_index.keys()
-		M_states = M_states_to_index.keys()
+		T_states = list(T_states_to_index.keys())
+		M_states = list(M_states_to_index.keys())
 
 	# Compute finite-L predictive probabilities:
 	# 
@@ -3350,7 +3350,7 @@ def simulate_eM(N, machine_fname, axs, inf_alg, initial_state = None, M_states_t
 	
 	M_index_to_states = {}
 	
-	for state in M_states_to_index.keys():
+	for state in list(M_states_to_index.keys()):
 		M_index_to_states[M_states_to_index[state]] = state
 	
 	stationary_cum_dist_eM = numpy.cumsum([0.] + stationary_dist_eM)
@@ -3424,14 +3424,14 @@ def simulate_eT(N, machine_fname, transducer_fname, X, axs, ays, inf_alg, initia
 	
 	P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg)
 	
-	T_states = T_states_to_index.keys()
-	M_states = M_states_to_index.keys()
+	T_states = list(T_states_to_index.keys())
+	M_states = list(M_states_to_index.keys())
 	
 	stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
 	
 	T_index_to_states = {}
 	
-	for state in T_states_to_index.keys():
+	for state in list(T_states_to_index.keys()):
 		T_index_to_states[T_states_to_index[state]] = state
 	
 	stationary_cum_dist_eT = numpy.cumsum([0.] + stationary_dist_eT)
@@ -3519,13 +3519,13 @@ def filter_and_pred_probs_nonsynch(stringX, stringY, machine_fname, transducer_f
 	if M_states_to_index == None or T_states_to_index == None or M_trans == None or T_trans == None or stationary_dist_mixed == None or stationary_dist_eT == None: # Only recompute these if we need to.
 		P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg)
 		
-		T_states = T_states_to_index.keys()
-		M_states = M_states_to_index.keys()
+		T_states = list(T_states_to_index.keys())
+		M_states = list(M_states_to_index.keys())
 		
 		stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
 	else:
-		T_states = T_states_to_index.keys()
-		M_states = M_states_to_index.keys()
+		T_states = list(T_states_to_index.keys())
+		M_states = list(M_states_to_index.keys())
 
 	# Compute finite-L predictive probabilities:
 	# 
@@ -3702,13 +3702,13 @@ def filter_and_pred_probs_breakforbidden(stringX, stringY, machine_fname, transd
 	if M_states_to_index == None or T_states_to_index == None or M_trans == None or T_trans == None or stationary_dist_mixed == None or stationary_dist_eT == None: # Only recompute these if we need to.
 		P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg)
 		
-		T_states = T_states_to_index.keys()
-		M_states = M_states_to_index.keys()
+		T_states = list(T_states_to_index.keys())
+		M_states = list(M_states_to_index.keys())
 		
 		stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
 	else:
-		T_states = T_states_to_index.keys()
-		M_states = M_states_to_index.keys()
+		T_states = list(T_states_to_index.keys())
+		M_states = list(M_states_to_index.keys())
 
 	# Compute finite-L predictive probabilities:
 	# 
@@ -3929,13 +3929,13 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 	if M_states_to_index == None or T_states_to_index == None or M_trans == None or T_trans == None or stationary_dist_mixed == None or stationary_dist_eT == None: # Only recompute these if we need to.
 		P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg)
 		
-		T_states = T_states_to_index.keys()
-		M_states = M_states_to_index.keys()
+		T_states = list(T_states_to_index.keys())
+		M_states = list(M_states_to_index.keys())
 		
 		stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
 	else:
-		T_states = T_states_to_index.keys()
-		M_states = M_states_to_index.keys()
+		T_states = list(T_states_to_index.keys())
+		M_states = list(M_states_to_index.keys())
 
 	# Compute finite-L predictive probabilities:
 	# 
@@ -4005,7 +4005,7 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 	while t < len(stringX):
 		if not is_synched:
 			if verbose_filtering_errors:
-				print("Still de-synchronized at t = {}".format(t))
+				print(("Still de-synchronized at t = {}".format(t)))
 			for mixed_state in mixed_states_array[active_mixed_states_boolean]:
 				T_state_from = T_state_from_mixed[mixed_state]
 				M_state_from = M_state_from_mixed[mixed_state]
@@ -4161,7 +4161,7 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 				is_synched = True
 
 				if verbose_filtering_errors:
-					print("Synchronized at t = {}...".format(t_synched))
+					print(("Synchronized at t = {}...".format(t_synched)))
 
 				t += 1
 			elif num_active_states == 0.: # We've followed a path that isn't allowed by *any* of the mixed states, so we need to restart as if we de-sychronized.
@@ -4169,7 +4169,7 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 				t_unsynched = t # The first index for which we are unsynchronized.
 
 				if verbose_filtering_errors:
-					print("Forcing de-synchronization at t = {}...".format(t_unsynched))
+					print(("Forcing de-synchronization at t = {}...".format(t_unsynched)))
 
 				# p_joint_string_L_by_time = numpy.zeros(len(stringX))
 				# p_joint_string_Lp1_by_time = numpy.zeros((len(stringX), len(ays)))
@@ -4217,7 +4217,7 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 				t_unsynched = t # The first index for which we are unsynchronized.
 
 				if verbose_filtering_errors:
-					print("De-synchronized at t = {}...".format(t_unsynched))
+					print(("De-synchronized at t = {}...".format(t_unsynched)))
 
 				# p_joint_string_L_by_time = numpy.zeros(len(stringX))
 				# p_joint_string_Lp1_by_time = numpy.zeros((len(stringX), len(ays)))
@@ -4578,7 +4578,7 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 
 	HLs = numpy.cumsum(hLs)
 
-	ELs = 2*HLs[:L_use/2] - HLs[1::2]
+	ELs = 2*HLs[:L_use//2] - HLs[1::2]
 
 	cumsum_E = numpy.cumsum(hLs - hmu)
 

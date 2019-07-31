@@ -119,7 +119,7 @@ verbose = False
 
 # L is the maximum amount we want to ever look back.
 
-L_max = 10
+L_max = 3
 
 Tx = len(stringX); Ty = len(stringY)
 
@@ -129,11 +129,11 @@ T = Tx
 
 startTime = time.time()
 word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_max, counting_method = counting_method, axs = axs, ays = ays)
-print ('The transCSSR counting took {0} seconds...'.format(time.time() - startTime))
+print(('The transCSSR counting took {0} seconds...'.format(time.time() - startTime)))
 
 epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, verbose = False)
 
-print 'The epsilon-transducer has {} states.'.format(len(invepsilon))
+print('The epsilon-transducer has {} states.'.format(len(invepsilon)))
 
 print_morph_by_states(morph_by_state, axs, ays, e_symbols)
 

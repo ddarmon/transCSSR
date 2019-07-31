@@ -94,7 +94,7 @@ for cur_ind in range(1, ind_go_to):
 
 	possible_states_from_predict_presynch_eT[cur_ind - 1] = possible_states
 
-	print(cur_ind, curX, curY + '*', preds.tolist(), possible_states)
+	print((cur_ind, curX, curY + '*', preds.tolist(), possible_states))
 
 print('')
 
@@ -104,19 +104,19 @@ for cur_ind in range(1, ind_go_to):
 	curX = stringX[:cur_ind]
 	curY = stringY[:cur_ind-1]
 
-	print(cur_ind, curX, curY + '*', preds_all[cur_ind-1, :].tolist(), possible_states_all[cur_ind-1, :].tolist())
+	print((cur_ind, curX, curY + '*', preds_all[cur_ind-1, :].tolist(), possible_states_all[cur_ind-1, :].tolist()))
 
 filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max, memoryless = False)
 
 print_go_to = 40
 
-print("\n\nFirst {} predictions.".format(print_go_to))
+print(("\n\nFirst {} predictions.".format(print_go_to)))
 for ind in range(print_go_to):
-	print(filtered_probs[ind], preds_all[ind, 1])
+	print((filtered_probs[ind], preds_all[ind, 1]))
 
-print("\n\nLast {} predictions.".format(print_go_to))
+print(("\n\nLast {} predictions.".format(print_go_to)))
 for ind in range(preds_all.shape[0] - print_go_to, preds_all.shape[0]):
-	print(filtered_probs[ind], preds_all[ind, 1])
+	print((filtered_probs[ind], preds_all[ind, 1]))
 
 import matplotlib.pyplot as plt
 
