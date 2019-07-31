@@ -143,3 +143,5 @@ filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stri
 
 # for t_ind in range(int(numpy.min([100, len(stringX)]))):
 # 	print stringX[t_ind], stringY[t_ind], stringY_pred[t_ind], filtered_states[t_ind], filtered_probs[t_ind]
+
+preds_all, possible_states_all = filter_and_pred_probs(stringX, stringY, machine_fname = 'transCSSR_results/+{}.dot'.format(Xt_name), transducer_fname = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name), axs = axs, ays = ays, inf_alg = 'transCSSR')
