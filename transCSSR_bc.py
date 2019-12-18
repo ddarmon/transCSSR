@@ -1257,6 +1257,7 @@ def estimate_predictive_distributions(stringX, stringY, L_max, counting_method =
 		del word_lookup_fut['', '']
 	
 	return word_lookup_marg, word_lookup_fut
+
 def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False, all_digits = False):
 	"""
 	run_transCSSR performs the CSSR algorithm, adapted for
@@ -2614,9 +2615,6 @@ def map_words(xs, ys, trans_matrix, states):
 			break
 	
 	return s_to, admissible
-
-# transducer_name = '/Users/daviddarmon/Dropbox/transfer/orc-wordmap/OddRandomChannel.dot'
-transducer_name = '/Users/daviddarmon/Dropbox/transfer/orc-wordmap/FeedbackXORChannel.dot'
 
 def generate_wordmap(transducer_fname, L = 8):
 	"""
