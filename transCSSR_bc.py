@@ -4646,6 +4646,7 @@ def generate_word_probs_eM(Yt_name, ays, wordlength = 5, inf_alg = 'transCSSR'):
 	"""
 
 	axs = ['0']
+	Xt_name = ''
 
 	machine_fname = 'transCSSR_results/+.dot'
 	transducer_fname = 'transCSSR_results/+{}.dot'.format(Yt_name)
