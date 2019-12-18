@@ -4607,3 +4607,159 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 	# print('The Excess Entropy E is: {} ({}, {})'.format(E, cumsum_E[-1], ELs2[-1]))
 
 	return HLs[:L_max], hLs[:L_max], hmu, ELs[:L_max], E, Cmu, etas_matrix
+
+def generate_word_probs_eM(Yt_name, ays, wordlength = 5, inf_alg = 'transCSSR'):
+	"""
+	Compute the probability of all wordlength-length words from the supplied
+	epsilon-machine.
+
+	That is, this function computes P(X_{1}^{wordlength} = x_{1}^{wordlength})
+	for all 2^{wordlength} possible words x_{1}^{wordlength}.
+
+	NOTE: This function is currently designed to enumerate only **binary** words.
+
+	Parameters
+	----------
+	Yt_name : str
+			The name of the epsilon-machine, assumed to be stored in
+			transCSSR_results/+*.dot
+	ays : list
+			The alphabet for the epsilon-machine
+	wordlength : int
+			The length of the words to determine the probabilities for.
+
+	Returns
+	-------
+	transduced_word_probs : numpy.array
+			The probabilities for each of the 2^{wordlength} 
+			possible words x_{1}^{wordlength}.
+
+	Notes
+	-----
+	Any notes go here.
+
+	Examples
+	--------
+	>>> import module_name
+	>>> # Demonstrate code here.
+
+	"""
+
+	axs = ['0']
+
+	machine_fname = 'transCSSR_results/+.dot'
+	transducer_fname = 'transCSSR_results/+{}.dot'.format(Yt_name)
+	inf_alg = 'transCSSR'
+
+	P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg = inf_alg)
+
+	T_states = list(T_states_to_index.keys())
+	M_states = list(M_states_to_index.keys())
+
+	stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
+
+	machine_fname = 'transCSSR_results/+{}.dot'.format(Xt_name)
+	transducer_fname = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name)
+	inf_alg = 'transCSSR'
+
+	P, T_states_to_index, M_states_to_index, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg = inf_alg)
+
+	T_states = T_states_to_index.keys()
+	M_states = M_states_to_index.keys()
+
+	stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
+
+	joint_string_prods_MT = {}
+
+	for M_start_state in M_states:
+		for T_start_state in T_states:
+			M_state_from = M_start_state
+			T_state_from = T_start_state
+
+			p_joint_string_Lp1 = numpy.zeros((len(axs), len(ays)))
+
+			joint_string_prods = [{('', '') : 1.0}]
+			joint_string_states = [{('', '') : (M_state_from, T_state_from)}]
+
+			for L in range(wordlength):
+				joint_string_prods.append({})
+				joint_string_states.append({})
+
+				for xword, yword in joint_string_prods[-2].keys():
+					for ax_ind, ax in enumerate(axs):
+						x = ax
+						for ay_ind, ay in enumerate(ays):
+							y = ay
+
+							p_prod = joint_string_prods[-2][(xword, yword)]
+
+							if p_prod == 0.:
+								pass
+							else:
+								M_state_from, T_state_from = joint_string_states[-2][(xword, yword)]
+
+								T_state_to, pT_to = T_trans.get((T_state_from, x, y), (None, 0))
+
+								if pT_to == 0:
+									# break
+									pass
+
+								M_state_to, pM_to = M_trans.get((M_state_from, x), (None, 0))
+
+								if pM_to == 0:
+									# break
+									pass
+
+								joint_string_prods[-1][(xword + x, yword + y)] = p_prod*pT_to*pM_to
+								joint_string_states[-1][(xword + x, yword + y)] = (M_state_to, T_state_to)
+
+			joint_string_prods_MT[M_start_state, T_start_state] = joint_string_prods
+
+	L_words_x = ['0'*wordlength]
+	L_words_y = ['{0:0{width}b}'.format(v, width=wordlength) for v in range(2**wordlength)]
+
+	joint_string_probs = {}
+
+	for xword in L_words_x:
+		for yword in L_words_y:
+			joint_string_probs[xword, yword] = 0.0
+
+			for M_start_state in M_states:
+				for T_start_state in T_states:
+
+					i_from = T_states_to_index[T_start_state]
+
+					T_offset_from = len(M_states)*i_from
+
+					j_from = M_states_to_index[M_start_state]
+
+					M_offset_from = j_from
+
+					cur_stationary_prob = stationary_dist_mixed[T_offset_from + M_offset_from]
+
+					io_word_prob = joint_string_prods_MT[(M_start_state, T_start_state)][wordlength].get((xword, yword), 0.0)
+
+					joint_string_probs[xword, yword] += io_word_prob*cur_stationary_prob
+
+	cond_string_probs = {}
+
+	for xword in L_words_x:
+		x_fixed_prob = 0.
+
+		for yword in L_words_y:
+			x_fixed_prob += joint_string_probs[xword, yword]
+
+		for yword in L_words_y:
+			cond_string_probs[xword, yword] = joint_string_probs[xword, yword]/x_fixed_prob
+
+	transduced_word_probs = []
+
+	for xword in L_words_x:
+		for yword in L_words_y:
+			# print('{} | {} : {}'.format(xword, yword, cond_string_probs[xword, yword]))
+
+			transduced_word_probs.append(cond_string_probs[xword, yword])
+
+	transduced_word_probs = numpy.array(transduced_word_probs)
+
+	return transduced_word_probs
