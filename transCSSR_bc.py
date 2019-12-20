@@ -4,13 +4,8 @@ import os
 import itertools
 import string
 import copy
-import pylab
-from matplotlib import cm
-from matplotlib.colors import LinearSegmentedColormap
 
-import matplotlib.pyplot as plt
-
-# Dependencies: numpy, scipy, pandas, igraph, pylab, matplotlib
+# Dependencies: numpy, scipy, pandas, igraph, matplotlib
 
 import numpy
 import scipy.stats
@@ -2651,6 +2646,11 @@ def generate_wordmap(transducer_fname, L = 8):
 	>>> # Demonstrate code here.
 
 	"""
+
+	from matplotlib import cm
+	from matplotlib.colors import LinearSegmentedColormap
+
+	import matplotlib.pyplot as plt
 	
 	trans_matrix, states = load_transition_matrix_transducer('{}'.format(transducer_fname))
 
@@ -2697,14 +2697,14 @@ def generate_wordmap(transducer_fname, L = 8):
 					y_numeric += int(ys_flipped[t])*2.**(-(t+1))
 				
 			
-				pylab.scatter(x_numeric, y_numeric, s = 3, c = colors(states_to_col[s_to]), edgecolor = 'none')
+				plt.scatter(x_numeric, y_numeric, s = 3, c = colors(states_to_col[s_to]), edgecolor = 'none')
 		
-	pylab.xlim(xmin = 0, xmax = 1)
-	pylab.ylim(ymin = 0, ymax = 1)
+	plt.xlim(xmin = 0, xmax = 1)
+	plt.ylim(ymin = 0, ymax = 1)
 
-	pylab.axes().set_aspect('equal')
+	plt.axes().set_aspect('equal')
 
-	pylab.show()
+	plt.show()
 
 def predict_presynch_eM(stringX, machine_fname, axs, inf_alg, M_states_to_index = None, M_trans = None, stationary_dist_eM = None):
 	"""
@@ -4595,6 +4595,8 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 	E = cumsum_E[-1]
 
 	if to_plot:
+		import matplotlib.pyplot as plt
+		
 		fig, ax = plt.subplots(2, sharex = True)
 		ax[0].plot(hLs[:L_max], '.')
 		ax[0].axhline(hmu, linestyle = '--', color = 'r')
