@@ -3385,6 +3385,94 @@ def simulate_eM(N, machine_fname, axs, inf_alg, initial_state = None, M_states_t
 	
 	return X
 
+def simulate_eM_fast(N, machine_fname, axs, inf_alg, initial_state = None, M_states_to_index = None, M_trans = None, stationary_dist_eM = None):
+	"""
+	Lorem ipsum.
+
+	Parameters
+	----------
+	N : int
+			The desired length of the simulated time series.
+	machine_fname : string
+			The path to the epsilon-machine in dot format.
+	axs : list
+			The process alphabet.
+	inf_alg : string
+			The inference algorithm used to estimate the machine.
+			One of {'CSSR', 'transCSSR'}
+
+	Returns
+	-------
+	X : str
+			The simulated time series from the provided eM
+			as a string.
+
+	Notes
+	-----
+	Any notes go here.
+
+	Examples
+	--------
+	>>> import module_name
+	>>> # Demonstrate code here.
+
+	"""
+	
+	X = ['']*N
+
+	us = numpy.random.rand(N + 1)
+	
+	if stationary_dist_eM == None:
+		P, M_states_to_index, M_trans = compute_eM_transition_matrix(machine_fname, axs, inf_alg = inf_alg)
+
+		stationary_dist_mixed, stationary_dist_eM = compute_channel_states_distribution(P, {'A' : 0}, M_states_to_index)
+	
+	M_index_to_states = {}
+	
+	for state in list(M_states_to_index.keys()):
+		M_index_to_states[M_states_to_index[state]] = state
+	
+	stationary_cum_dist_eM = numpy.cumsum([0.] + stationary_dist_eM)
+
+	if initial_state is None:
+		u = us[0]
+
+		for i in range(len(stationary_dist_eM)):
+			if u > stationary_cum_dist_eM[i] and u <= stationary_cum_dist_eM[i+1]:
+				S0 = M_index_to_states[i]
+				break
+	else:
+		S0 = initial_state
+
+	# Get trans_cum_dist **once**, rather than at **each step**
+
+	trans_cum_dist_dict = {}
+
+	for s0 in M_index_to_states.values():
+		trans_dist = [0 for tmp in range(len(axs))]
+		
+		for ax_ind, ax in enumerate(axs):
+			s1, p = M_trans.get((s0, ax), (None, 0.))
+			
+			trans_dist[ax_ind] = p
+			
+		trans_cum_dist_dict[s0] = numpy.cumsum([0.] + trans_dist)
+
+	# Simulate trajectory.
+
+	for t in range(N):		
+		u = us[t + 1]
+
+		for i in range(len(axs)):
+			if u > trans_cum_dist_dict[S0][i] and u <= trans_cum_dist_dict[S0][i+1]:
+				X1 = axs[i]
+		
+		S0, p = M_trans[(S0, X1)]
+		
+		X[t] = X1
+	
+	return ''.join(X)
+
 def simulate_eT(N, machine_fname, transducer_fname, X, axs, ays, inf_alg, initial_state = None):
 	"""
 	Lorem ipsum.
