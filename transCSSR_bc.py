@@ -488,43 +488,54 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 		for state_rank, state in enumerate(invepsilon.keys()):
 			printing_lookup[state] = state_rank
 
-		seen_transition = {}
-		
-		exists_transition = {} # Whether a transition exists (from_state, to_state)
-		
-		W = defaultdict(str) # The stochastic matrix, stored as a string, by state
-		
-		for state in list(invepsilon.keys()):
-			for history in invepsilon[state]:
+		if len(invepsilon) == 1:
+			for state in list(invepsilon.keys()):
 				for ay in ays:
 					for ax in axs:
-						if len(history[0]) == L_max:
-							to_state = epsilon.get((history[0][1:] + ax, history[1][1:] + ay), -1)
-						else:
-							to_state = epsilon.get((history[0] + ax, history[1] + ay), -1)
+						ptrans = prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]
 
-						if to_state == -1:
-							pass
-						else:
-							if seen_transition.get((state, to_state, (ax, ay)), False):
+						if ptrans > 0:
+							W = '{}|{}:{}\\l'.format(ay, ax, ptrans)
+
+							wfile.write('A -> A [label = \"{}\"];\n'.format(W))
+		else:
+			seen_transition = {}
+			
+			exists_transition = {} # Whether a transition exists (from_state, to_state)
+			
+			W = defaultdict(str) # The stochastic matrix, stored as a string, by state
+
+			for state in list(invepsilon.keys()):
+				for history in invepsilon[state]:
+					for ay in ays:
+						for ax in axs:
+							if len(history[0]) == L_max:
+								to_state = epsilon.get((history[0][1:] + ax, history[1][1:] + ay), -1)
+							else:
+								to_state = epsilon.get((history[0] + ax, history[1] + ay), -1)
+
+							if to_state == -1:
 								pass
 							else:
-								ptrans = prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]
+								if seen_transition.get((state, to_state, (ax, ay)), False):
+									pass
+								else:
+									ptrans = prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]
 
-								if not numpy.isnan(ptrans):
-									seen_transition[(state, to_state, (ax, ay))] = True
-									
-									exists_transition[(state, to_state)] = True
+									if not numpy.isnan(ptrans):
+										seen_transition[(state, to_state, (ax, ay))] = True
+										
+										exists_transition[(state, to_state)] = True
 
-									if all_digits:
-										W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, ptrans)
-									else:
-										W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, ptrans)
-		
-		for from_state in list(invepsilon.keys()):
-			for to_state in list(invepsilon.keys()):
-				if exists_transition.get((from_state, to_state), False):
-					wfile.write('{} -> {} [label = \"{}\"];\n'.format(numeric_to_alpha(printing_lookup[from_state]), numeric_to_alpha(printing_lookup[to_state]), W[(from_state, to_state)]))
+										if all_digits:
+											W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, ptrans)
+										else:
+											W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, ptrans)
+			
+			for from_state in list(invepsilon.keys()):
+				for to_state in list(invepsilon.keys()):
+					if exists_transition.get((from_state, to_state), False):
+						wfile.write('{} -> {} [label = \"{}\"];\n'.format(numeric_to_alpha(printing_lookup[from_state]), numeric_to_alpha(printing_lookup[to_state]), W[(from_state, to_state)]))
 		
 		wfile.write('}')
 def numeric_to_alpha(value):
