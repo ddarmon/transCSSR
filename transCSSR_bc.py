@@ -14,7 +14,7 @@ from igraph import *
 
 from filter_data_methods import *
 
-from sklearn.metrics import log_loss
+import ipdb
 
 def chisquared_test(morph1, morph2, axs, ays, alpha = 0.001, test_type = 'chi2'):
 	"""
@@ -1091,11 +1091,11 @@ def estimate_predictive_distributions(stringX, stringY, L_max, counting_method =
 			words of length 0 to L_max + 1. One of {0, 1}
 
 			0 : The joint words of length 0 to L_max + 1 are 
-			    counted as we parse the string.
+				counted as we parse the string.
 			1 : The joint words of length L_max + 1 are counted
-			    as we parse the string, and then the counts of
-			    joint sub-words are obtained by marginalizing
-			    the counts of the joint words.
+				as we parse the string, and then the counts of
+				joint sub-words are obtained by marginalizing
+				the counts of the joint words.
 
 			0 is faster for larger L_max and shorter strings.
 			1 is faster for smaller L_max and longer strings.
@@ -2673,13 +2673,13 @@ def generate_wordmap(transducer_fname, L = 8):
 	L_pow = 2**L
 
 	cdict = {'red':   [(0.0, 1.0, 1.0),  # red decreases
-	                   (1.0, 0.0, 0.0)],
+					   (1.0, 0.0, 0.0)],
 
-	         'green': [(0.0, 0.0, 0.0),  # green increases
-	                   (1.0, 1.0, 1.0)],
+			 'green': [(0.0, 0.0, 0.0),  # green increases
+					   (1.0, 1.0, 1.0)],
 
-	         'blue':  [(0.0, 0.0, 0.0),  # no blue at all
-	                   (1.0, 0.0, 0.0)]}
+			 'blue':  [(0.0, 0.0, 0.0),  # no blue at all
+					   (1.0, 0.0, 0.0)]}
 
 	red_green_cm = LinearSegmentedColormap('RedGreen', cdict, len(states))
 
@@ -4465,7 +4465,7 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 	new_states = True
 
 	etas_matrix = eta.copy()
-	etas_cur    = eta.copy()
+	etas_cur	= eta.copy()
 	etas_new = numpy.matrix([numpy.nan]*len(M_states_to_index))
 
 	diff_tol = 1e-10
@@ -4868,49 +4868,90 @@ def generate_word_probs_eM(Yt_name, ays, wordlength = 5, inf_alg = 'transCSSR'):
 
 	return transduced_word_probs
 
-def choose_L(stringX, stringY, L_max, split_prop, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False, all_digits = False):
+# def choose_L(stringX, stringY, L_max, split_prop, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False, all_digits = False):
+# 	machine_fname = 'transCSSR_results/+{}.dot'.format(Xt_name)
+# 	transducer_fname = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name)
+
+# 	stringY_train = stringY[:int(len(stringY)*split_prop)]
+# 	stringY_test  = stringY[int(len(stringY)*split_prop):]
+
+# 	stringX_train = stringX[:int(len(stringX)*split_prop)]
+# 	stringX_test  = stringX[int(len(stringX)*split_prop):]
+
+# 	ays_lookup = {}
+# 	y_labels = []
+
+# 	for y_ind, y in enumerate(ays):
+# 		ays_lookup[y] = y_ind
+# 		y_labels.append(y_ind)
+
+# 	arrayY = numpy.zeros(len(stringY_test), dtype = 'int16')
+
+# 	for t, y in enumerate(stringY_test):
+# 		arrayY[t] = ays_lookup[y]
+
+# 	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX_train, stringY_train, L_max)
+
+# 	log_loss_by_L = []
+
+# 	Ls = range(1, L_max+1)
+
+# 	for L in Ls:
+# 		epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True)
+		
+# 		try: # If we attempt to filter a forbidden past, filter_and_pred_probs will throw an error.
+# 			pred_probs_by_time, cur_states_by_time = filter_and_pred_probs(stringX_test, stringY_test, machine_fname, transducer_fname, axs, ays, 'transCSSR')
+# 			log_loss_by_L.append(log_loss(y_pred=pred_probs_by_time, y_true=arrayY, labels = y_labels))
+# 		except:
+# 			log_loss_by_L.append(numpy.nan)
+
+# 	L_opt = Ls[numpy.nanargmin(log_loss_by_L)]
+
+# 	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_opt)
+
+# 	epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_opt, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True)
+
+# 	output = {'epsilon' : epsilon, 'invepsilon' : invepsilon, 'morph_by_state' : morph_by_state, 'L_opt' : L_opt, 'log_loss_by_L' : log_loss_by_L}
+
+# 	return(output)
+
+def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False, all_digits = False):
 	machine_fname = 'transCSSR_results/+{}.dot'.format(Xt_name)
 	transducer_fname = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name)
 
-	stringY_train = stringY[:int(len(stringY)*split_prop)]
-	stringY_test  = stringY[int(len(stringY)*split_prop):]
-
-	stringX_train = stringX[:int(len(stringX)*split_prop)]
-	stringX_test  = stringX[int(len(stringX)*split_prop):]
+	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_max)
 
 	ays_lookup = {}
-	y_labels = []
 
 	for y_ind, y in enumerate(ays):
-	    ays_lookup[y] = y_ind
-	    y_labels.append(y_ind)
+		ays_lookup[y] = y_ind
 
-	arrayY = numpy.zeros(len(stringY_test), dtype = 'int16')
-
-	for t, y in enumerate(stringY_test):
-	    arrayY[t] = ays_lookup[y]
-
-	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX_train, stringY_train, L_max)
-
-	log_loss_by_L = []
+	bic_by_L = []
 
 	Ls = range(1, L_max+1)
 
 	for L in Ls:
-	    epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True)
-	    
-	    try: # If we attempt to filter a forbidden past, filter_and_pred_probs will throw an error.
-	        pred_probs_by_time, cur_states_by_time = filter_and_pred_probs(stringX_test, stringY_test, machine_fname, transducer_fname, axs, ays, 'transCSSR')
-	        log_loss_by_L.append(log_loss(y_pred=pred_probs_by_time, y_true=arrayY, labels = y_labels))
-	    except:
-	        log_loss_by_L.append(numpy.nan)
+		epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True)
+		
+		pred_probs_by_time, cur_states_by_time = filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs, ays, 'transCSSR')
 
-	L_opt = Ls[numpy.nanargmin(log_loss_by_L)]
+		realized_probs_by_time = numpy.zeros(len(stringY))
+
+		for t, y in enumerate(stringY):
+			realized_probs_by_time[t] = pred_probs_by_time[t, ays_lookup[y]]
+
+		log_like = numpy.sum(numpy.log(realized_probs_by_time))
+
+		num_states = len(invepsilon)
+
+		bic_by_L.append(-2*log_like + num_states*numpy.log(len(stringY)))
+
+	L_opt = Ls[numpy.nanargmin(bic_by_L)]
 
 	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_opt)
 
 	epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_opt, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True)
 
-	output = {'epsilon' : epsilon, 'invepsilon' : invepsilon, 'morph_by_state' : morph_by_state, 'L_opt' : L_opt, 'log_loss_by_L' : log_loss_by_L}
+	output = {'epsilon' : epsilon, 'invepsilon' : invepsilon, 'morph_by_state' : morph_by_state, 'L_opt' : L_opt, 'bic_by_L' : bic_by_L}
 
 	return(output)
