@@ -14,6 +14,8 @@ from igraph import *
 
 from filter_data_methods import *
 
+from sklearn.metrics import log_loss
+
 def chisquared_test(morph1, morph2, axs, ays, alpha = 0.001, test_type = 'chi2'):
 	"""
 	Compare two predictive distributions (morph1 and morph2) to determine
@@ -4865,3 +4867,50 @@ def generate_word_probs_eM(Yt_name, ays, wordlength = 5, inf_alg = 'transCSSR'):
 	transduced_word_probs = numpy.array(transduced_word_probs)
 
 	return transduced_word_probs
+
+def choose_L(stringX, stringY, L_max, split_prop, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False, all_digits = False):
+	machine_fname = 'transCSSR_results/+{}.dot'.format(Xt_name)
+	transducer_fname = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name)
+
+	stringY_train = stringY[:int(len(stringY)*split_prop)]
+	stringY_test  = stringY[int(len(stringY)*split_prop):]
+
+	stringX_train = stringX[:int(len(stringX)*split_prop)]
+	stringX_test  = stringX[int(len(stringX)*split_prop):]
+
+	ays_lookup = {}
+	y_labels = []
+
+	for y_ind, y in enumerate(ays):
+	    ays_lookup[y] = y_ind
+	    y_labels.append(y_ind)
+
+	arrayY = numpy.zeros(len(stringY_test), dtype = 'int16')
+
+	for t, y in enumerate(stringY_test):
+	    arrayY[t] = ays_lookup[y]
+
+	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX_train, stringY_train, L_max)
+
+	log_loss_by_L = []
+
+	Ls = range(1, L_max+1)
+
+	for L in Ls:
+	    epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True)
+	    
+	    try: # If we attempt to filter a forbidden past, filter_and_pred_probs will throw an error.
+	        pred_probs_by_time, cur_states_by_time = filter_and_pred_probs(stringX_test, stringY_test, machine_fname, transducer_fname, axs, ays, 'transCSSR')
+	        log_loss_by_L.append(log_loss(y_pred=pred_probs_by_time, y_true=arrayY, labels = y_labels))
+	    except:
+	        log_loss_by_L.append(numpy.nan)
+
+	L_opt = Ls[numpy.nanargmin(log_loss_by_L)]
+
+	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_opt)
+
+	epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_opt, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True)
+
+	output = {'epsilon' : epsilon, 'invepsilon' : invepsilon, 'morph_by_state' : morph_by_state, 'L_opt' : L_opt, 'log_loss_by_L' : log_loss_by_L}
+
+	return(output)
