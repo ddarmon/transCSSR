@@ -14,8 +14,6 @@ from igraph import *
 
 from filter_data_methods import *
 
-import ipdb
-
 def chisquared_test(morph1, morph2, axs, ays, alpha = 0.001, test_type = 'chi2'):
 	"""
 	Compare two predictive distributions (morph1 and morph2) to determine
@@ -410,7 +408,7 @@ def draw_dot(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max):
 							
 									wfile.write('{} -> {} [label = \"{}|{}:{:.3}\"];\n'.format(numeric_to_alpha(printing_lookup[state]), numeric_to_alpha(printing_lookup[to_state]), ay, ax, prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]))
 		wfile.write('}')
-def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits = False):
+def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, L_max, all_digits = False, save_dot = True):
 	"""
 	This function draws the .dot file associated with the 
 	epsilon-transducer stored in epsilon+invepsilon.
@@ -476,70 +474,74 @@ def draw_dot_singlearrows(fname, epsilon, invepsilon, morph_by_state, axs, ays, 
 		
 			prob_by_state[state][x_ind*len(ays):x_ind*len(ays) + len(ays)] = prob_by_x
 
-	dot_header = 'digraph  {\nsize = \"6,8.5\";\nratio = "fill";\nnode\n[shape = circle];\nnode [fontsize = 24];\nnode [penwidth = 5];\nedge [fontsize = 24];\nnode [fontname = \"CMU Serif Roman\"];\ngraph [fontname = \"CMU Serif Roman\"];\nedge [fontname = \"CMU Serif Roman\"];\n'
+	dot_text = 'digraph  {\nsize = \"6,8.5\";\nratio = "fill";\nnode\n[shape = circle];\nnode [fontsize = 24];\nnode [penwidth = 5];\nedge [fontsize = 24];\nnode [fontname = \"CMU Serif Roman\"];\ngraph [fontname = \"CMU Serif Roman\"];\nedge [fontname = \"CMU Serif Roman\"];\n'
 
-	with open('{}.dot'.format(fname), 'w') as wfile:
-		wfile.write(dot_header)
+	# Draw associated candidate CSM.
+	
+	# Report the states as 0 through (# states) - 1.
+	
+	printing_lookup = {}
+	
+	for state_rank, state in enumerate(invepsilon.keys()):
+		printing_lookup[state] = state_rank
 
-		# Draw associated candidate CSM.
-		
-		# Report the states as 0 through (# states) - 1.
-		
-		printing_lookup = {}
-		
-		for state_rank, state in enumerate(invepsilon.keys()):
-			printing_lookup[state] = state_rank
+	if len(invepsilon) == 1:
+		for state in list(invepsilon.keys()):
+			for ay in ays:
+				for ax in axs:
+					ptrans = prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]
 
-		if len(invepsilon) == 1:
-			for state in list(invepsilon.keys()):
+					if ptrans > 0:
+						W = '{}|{}:{}\\l'.format(ay, ax, ptrans)
+
+						dot_text += 'A -> A [label = \"{}\"];\n'.format(W)
+	else:
+		seen_transition = {}
+		
+		exists_transition = {} # Whether a transition exists (from_state, to_state)
+		
+		W = defaultdict(str) # The stochastic matrix, stored as a string, by state
+
+		for state in list(invepsilon.keys()):
+			for history in invepsilon[state]:
 				for ay in ays:
 					for ax in axs:
-						ptrans = prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]
+						if len(history[0]) == L_max:
+							to_state = epsilon.get((history[0][1:] + ax, history[1][1:] + ay), -1)
+						else:
+							to_state = epsilon.get((history[0] + ax, history[1] + ay), -1)
 
-						if ptrans > 0:
-							W = '{}|{}:{}\\l'.format(ay, ax, ptrans)
-
-							wfile.write('A -> A [label = \"{}\"];\n'.format(W))
-		else:
-			seen_transition = {}
-			
-			exists_transition = {} # Whether a transition exists (from_state, to_state)
-			
-			W = defaultdict(str) # The stochastic matrix, stored as a string, by state
-
-			for state in list(invepsilon.keys()):
-				for history in invepsilon[state]:
-					for ay in ays:
-						for ax in axs:
-							if len(history[0]) == L_max:
-								to_state = epsilon.get((history[0][1:] + ax, history[1][1:] + ay), -1)
-							else:
-								to_state = epsilon.get((history[0] + ax, history[1] + ay), -1)
-
-							if to_state == -1:
+						if to_state == -1:
+							pass
+						else:
+							if seen_transition.get((state, to_state, (ax, ay)), False):
 								pass
 							else:
-								if seen_transition.get((state, to_state, (ax, ay)), False):
-									pass
-								else:
-									ptrans = prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]
+								ptrans = prob_by_state[state][len(ays)*input_lookup[ax] + output_lookup[ay]]
 
-									if not numpy.isnan(ptrans):
-										seen_transition[(state, to_state, (ax, ay))] = True
-										
-										exists_transition[(state, to_state)] = True
+								if not numpy.isnan(ptrans):
+									seen_transition[(state, to_state, (ax, ay))] = True
+									
+									exists_transition[(state, to_state)] = True
 
-										if all_digits:
-											W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, ptrans)
-										else:
-											W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, ptrans)
-			
-			for from_state in list(invepsilon.keys()):
-				for to_state in list(invepsilon.keys()):
-					if exists_transition.get((from_state, to_state), False):
-						wfile.write('{} -> {} [label = \"{}\"];\n'.format(numeric_to_alpha(printing_lookup[from_state]), numeric_to_alpha(printing_lookup[to_state]), W[(from_state, to_state)]))
+									if all_digits:
+										W[(state, to_state)] += '{}|{}:{}\\l'.format(ay, ax, ptrans)
+									else:
+										W[(state, to_state)] += '{}|{}:{:.3}\\l'.format(ay, ax, ptrans)
 		
-		wfile.write('}')
+		for from_state in list(invepsilon.keys()):
+			for to_state in list(invepsilon.keys()):
+				if exists_transition.get((from_state, to_state), False):
+					dot_text += '{} -> {} [label = \"{}\"];\n'.format(numeric_to_alpha(printing_lookup[from_state]), numeric_to_alpha(printing_lookup[to_state]), W[(from_state, to_state)])
+
+	dot_text += '}'
+
+	if save_dot:
+		with open('{}.dot'.format(fname), 'w') as wfile:		
+			wfile.write(dot_text)
+
+	return(dot_text)
+
 def numeric_to_alpha(value):
 	"""
 	This function maps from numeric values in {0, 1, 2, ...}
@@ -4917,7 +4919,6 @@ def generate_word_probs_eM(Yt_name, ays, wordlength = 5, inf_alg = 'transCSSR'):
 
 def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False, all_digits = False):
 	machine_fname = 'transCSSR_results/+{}.dot'.format(Xt_name)
-	transducer_fname = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name)
 
 	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_max)
 
@@ -4928,12 +4929,36 @@ def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, 
 
 	bic_by_L = []
 
+	num_states_by_L = []
+
+	dots_by_L = []
+
 	Ls = range(1, L_max+1)
 
 	for L in Ls:
-		epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True)
+		Yt_name_L = Yt_name + '_L{}'.format(L)
+		Yt_name_L_topo = Yt_name + '_L{}_topo'.format(L)
+
+		transducer_fname_prefix = 'transCSSR_results/{}+{}'.format(Xt_name, Yt_name_L)
+		transducer_fname = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name_L)
+		transducer_fname_topo = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name_L_topo)
+
+		epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L, axs, ays, e_symbols, Xt_name, Yt_name_L, alpha = alpha, all_digits = True)
 		
+		# Also save out the topological epsilon-machine, so that L is chosen to be
+		# the smallest L with the eM architecture matching the BIC-minimal L.
+
+		morph_by_state_topo = {}
+
+		for state in morph_by_state:
+			morph_by_state_topo[state] = numpy.sign(morph_by_state[state])
+
+		dots_by_L.append(draw_dot_singlearrows('transCSSR_results/{}+{}'.format(Xt_name, Yt_name_L_topo), epsilon, invepsilon, morph_by_state_topo, axs, ays, L_max=L, all_digits=False, save_dot = False))
+
 		pred_probs_by_time, cur_states_by_time = filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs, ays, 'transCSSR')
+
+		# os.system('open {}'.format(transducer_fname))
+		# os.system('open {}'.format(transducer_fname_topo))
 
 		realized_probs_by_time = numpy.zeros(len(stringY))
 
@@ -4946,12 +4971,46 @@ def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, 
 
 		bic_by_L.append(-2*log_like + num_states*numpy.log(len(stringY)))
 
-	L_opt = Ls[numpy.nanargmin(bic_by_L)]
+		num_states_by_L.append(len(invepsilon))
+
+		# Remove extra dot files.
+
+		os.system('rm {0}.dot; rm {0}.dat_results'.format(transducer_fname_prefix))
+
+	ind_opt = numpy.nanargmin(bic_by_L)
+
+	L_opt = Ls[ind_opt]
+
+	num_states_opt = num_states_by_L[ind_opt]
+
+	# print(L_opt, num_states_opt)
+
+	# print(num_states_by_L)
+
+	# Amongst machines with number of states equivalent to the machine for L_opt, choose
+	# the smallest L that gives an equivalent topological epsilon-machine.
+
+	# Do this by directly comparing the dot files.
+
+	dot_opt = dots_by_L[ind_opt]
+
+	for L_ind in range(len(Ls)):
+		if L_ind == ind_opt:
+			break
+		elif num_states_by_L[L_ind] == num_states_opt:
+			dot_cur = dots_by_L[L_ind]
+
+			if dot_opt == dot_cur:
+				L_opt = Ls[L_ind]
+
+				break
+
+	# print(L_opt, num_states_opt)
 
 	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_opt)
 
 	epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_opt, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True)
 
-	output = {'epsilon' : epsilon, 'invepsilon' : invepsilon, 'morph_by_state' : morph_by_state, 'L_opt' : L_opt, 'bic_by_L' : bic_by_L}
+	output = {'epsilon' : epsilon, 'invepsilon' : invepsilon, 'morph_by_state' : morph_by_state, 'L_opt' : L_opt, 'bic_by_L' : bic_by_L, 'num_states_by_L' : num_states_by_L}
 
 	return(output)
