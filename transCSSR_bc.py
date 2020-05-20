@@ -1772,6 +1772,8 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 	# of the transient states of the eM / eT.
 
 	if stringX != None and stringY != None:
+		morph_by_state_old = morph_by_state.copy()
+
 		ays_to_ind = {}
 
 		for ay_ind, ay in enumerate(ays):
@@ -1783,7 +1785,7 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 			morph_by_state[state] = [0 for e_symbol in e_symbols]
 
 		if type(stringX) == str: # A single realization was passed.
-			filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max)
+			filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state_old, axs, ays, e_symbols, L_max)
 
 			for t, state in enumerate(filtered_states):
 				if state == -1:
@@ -1984,10 +1986,10 @@ def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, ax
 	
 	if memoryless:
 		# s0 = epsilon.get((stringX[:L-1], 'n'*(L-1)), -1)
-		s0 = epsilon.get((stringX[:L], 'n'*L), -1)
+		s0 = epsilon.get((stringX[:L-1], 'n'*(L-1)), -1)
 	else:
 		# s0 = epsilon.get((stringX[:L-1], stringY[:L-1]), -1)
-		s0 = epsilon.get((stringX[:L], stringY[:L]), -1)
+		s0 = epsilon.get((stringX[:L-1], stringY[:L-1]), -1)
 
 	if len(invepsilon) == 1: # If only one state, we already know what the actual value is.
 		s0 = list(invepsilon.keys())[0]
