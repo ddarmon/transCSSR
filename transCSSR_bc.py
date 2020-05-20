@@ -1771,11 +1771,7 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 	# Currently using naive filtering that does not take advantage
 	# of the transient states of the eM / eT.
 
-	# Currently only works for non-multi-realization time series.
-
 	if stringX != None and stringY != None:
-		filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max)
-
 		ays_to_ind = {}
 
 		for ay_ind, ay in enumerate(ays):
@@ -1786,11 +1782,26 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 		for state in invepsilon.keys():
 			morph_by_state[state] = [0 for e_symbol in e_symbols]
 
-		for t, state in enumerate(filtered_states):
-			if state == -1:
-				pass
-			else:
-				morph_by_state[state][ays_to_ind[stringY[t]]] += 1
+		if type(stringX) == str: # A single realization was passed.
+			filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max)
+
+			for t, state in enumerate(filtered_states):
+				if state == -1:
+					pass
+				else:
+					morph_by_state[state][ays_to_ind[stringY[t]]] += 1
+		elif type(stringX) == list: # A list of realizations was passed
+			for r_ind in range(len(stringX)):
+				sX = stringX[r_ind]
+				sY = stringY[r_ind]
+
+				filtered_states, filtered_probs, stringY_pred = filter_and_predict(sX, sY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max)
+
+				for t, state in enumerate(filtered_states):
+					if state == -1:
+						pass
+					else:
+						morph_by_state[state][ays_to_ind[sY[t]]] += 1
 
 	# NOT DONE: Re-estimate morph_by_state using the final epsilon-transducer.
 	# This is meant to handle when absorbing states from a split that
@@ -1977,6 +1988,9 @@ def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, ax
 	else:
 		# s0 = epsilon.get((stringX[:L-1], stringY[:L-1]), -1)
 		s0 = epsilon.get((stringX[:L], stringY[:L]), -1)
+
+	if len(invepsilon) == 1: # If only one state, we already know what the actual value is.
+		s0 = list(invepsilon.keys())[0]
 	
 	filtered_states.append(s0)
 	
