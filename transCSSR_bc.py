@@ -1267,7 +1267,7 @@ def estimate_predictive_distributions(stringX, stringY, L_max, counting_method =
 	
 	return word_lookup_marg, word_lookup_fut
 
-def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False, all_digits = False):
+def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False, all_digits = False, stringX = None, stringY = None):
 	"""
 	run_transCSSR performs the CSSR algorithm, adapted for
 	epsilon-transducers, to estimate the Shalizi-style
@@ -1767,13 +1767,63 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 	# draw_dot('transCSSR_results/mydot-det_recurrent', epsilon, invepsilon, axs, ays, L_max)
 	# save_states('transCSSR_results/mydot-det_recurrent', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 
+	# Re-estimate morphs by filtering time series.
+	# Currently using naive filtering that does not take advantage
+	# of the transient states of the eM / eT.
+
+	# Currently only works for non-multi-realization time series.
+
+	if stringX != None and stringY != None:
+		filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max)
+
+		ays_to_ind = {}
+
+		for ay_ind, ay in enumerate(ays):
+			ays_to_ind[ay] = ay_ind
+
+		morph_by_state = {}
+
+		for state in invepsilon.keys():
+			morph_by_state[state] = [0 for e_symbol in e_symbols]
+
+		for t, state in enumerate(filtered_states):
+			if state == -1:
+				pass
+			else:
+				morph_by_state[state][ays_to_ind[stringY[t]]] += 1
+
 	# NOT DONE: Re-estimate morph_by_state using the final epsilon-transducer.
-	# This is mean to handle when absorbing states from a split that
+	# This is meant to handle when absorbing states from a split that
 	# left a transition to the absorbing state that should not have existed.
 	# 
 	# NOTE: This also demos how the morphs would be estimated from an
 	# already-inferred epsilon-machine.
 
+	# if not legacy_morphs:
+	# 	morph_by_state = {}
+	# 	for state in invepsilon.keys():
+	# 		morph_by_state[state] = [0 for e_symbol in e_symbols]
+
+	# 		# Treat states that **do not** have a history of length L_max - 1
+	# 		# differently from states that **do**.
+
+	# 		# Morphs for states that do not have a history of length L_max - 1 
+	# 		# are computed by right-padding-with-left-truncation the histories
+	# 		# of length L_max in that morph, to allow for the fact that a 
+	# 		# transition may be allowed by the epsilon-machine that did not
+	# 		# occur when considering histories of length L_max only.
+
+	# 		# So has_smaller_hist should only be True if a state has a history
+	# 		# of length L_max - 1.
+
+	# 		for candidate in invepsilon[state]:
+	# 			morph_by_history = [word_lookup_fut[('{}{}'.format(candidate[0], e_symbol[0]), '{}{}'.format(candidate[1], e_symbol[1]))] for e_symbol in e_symbols]
+
+	# 			for emission_ind in range(len(e_symbols)):
+	# 				morph_by_state[state][emission_ind] += morph_by_history[emission_ind]
+
+	# Way that generically does not work for a state with only histories of length L_max - 1. vvvv
+	# 
 	# if not legacy_morphs:
 	# 	morph_by_state = {}
 	# 	for state in invepsilon.keys():
@@ -4999,7 +5049,7 @@ def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, 
 		transducer_fname = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name_L)
 		transducer_fname_topo = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name_L_topo)
 
-		epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L, axs, ays, e_symbols, Xt_name, Yt_name_L, alpha = alpha, all_digits = True)
+		epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L, axs, ays, e_symbols, Xt_name, Yt_name_L, alpha = alpha, all_digits = True, stringX = stringX, stringY = stringY)
 		
 		# Also save out the topological epsilon-machine, so that L is chosen to be
 		# the smallest L with the eM architecture matching the BIC-minimal L.
@@ -5025,7 +5075,7 @@ def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, 
 
 		num_states = len(invepsilon)
 
-		bic_by_L.append(-2*log_like + num_states*numpy.log(len(stringY)))
+		bic_by_L.append(-2*log_like + num_states*(len(ays)-1)*numpy.log(len(stringY)))
 
 		num_states_by_L.append(len(invepsilon))
 
@@ -5065,7 +5115,7 @@ def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, 
 
 	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_opt)
 
-	epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_opt, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True)
+	epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_opt, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True, stringX = stringX, stringY = stringY)
 
 	output = {'epsilon' : epsilon, 'invepsilon' : invepsilon, 'morph_by_state' : morph_by_state, 'L_opt' : L_opt, 'bic_by_L' : bic_by_L, 'num_states_by_L' : num_states_by_L}
 
