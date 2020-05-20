@@ -1267,7 +1267,7 @@ def estimate_predictive_distributions(stringX, stringY, L_max, counting_method =
 	
 	return word_lookup_marg, word_lookup_fut
 
-def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False, all_digits = False, legacy_morphs = False):
+def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False, all_digits = False):
 	"""
 	run_transCSSR performs the CSSR algorithm, adapted for
 	epsilon-transducers, to estimate the Shalizi-style
@@ -1317,7 +1317,7 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 			as many digits as is standard in Python, rather than
 			to rounded.
 	legacy_morphs : bool
-			If true, the morph_by_state list uses the "old" 
+			NOT USED: If true, the morph_by_state list uses the "old" 
 			(pre-May 2020) way, which did not reestimate the morphs
 			from the final epsilon-transducer.
 			
@@ -1767,47 +1767,52 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 	# draw_dot('transCSSR_results/mydot-det_recurrent', epsilon, invepsilon, axs, ays, L_max)
 	# save_states('transCSSR_results/mydot-det_recurrent', epsilon, invepsilon, morph_by_state, axs, ays, L_max)
 
-	# Re-estimate morph_by_state using the final epsilon-transducer.
+	# NOT DONE: Re-estimate morph_by_state using the final epsilon-transducer.
+	# This is mean to handle when absorbing states from a split that
+	# left a transition to the absorbing state that should not have existed.
+	# 
+	# NOTE: This also demos how the morphs would be estimated from an
+	# already-inferred epsilon-machine.
 
-	if not legacy_morphs:
-		morph_by_state = {}
-		for state in invepsilon.keys():
-			morph_by_state[state] = [0 for e_symbol in e_symbols]
+	# if not legacy_morphs:
+	# 	morph_by_state = {}
+	# 	for state in invepsilon.keys():
+	# 		morph_by_state[state] = [0 for e_symbol in e_symbols]
 
-			# Treat states that **do not** have a history of length L_max - 1
-			# differently from states that **do**.
+	# 		# Treat states that **do not** have a history of length L_max - 1
+	# 		# differently from states that **do**.
 
-			# Morphs for states that do not have a history of length L_max - 1 
-			# are computed by right-padding-with-left-truncation the histories
-			# of length L_max in that morph, to allow for the fact that a 
-			# transition may be allowed by the epsilon-machine that did not
-			# occur when considering histories of length L_max only.
+	# 		# Morphs for states that do not have a history of length L_max - 1 
+	# 		# are computed by right-padding-with-left-truncation the histories
+	# 		# of length L_max in that morph, to allow for the fact that a 
+	# 		# transition may be allowed by the epsilon-machine that did not
+	# 		# occur when considering histories of length L_max only.
 
-			# So has_smaller_hist should only be True if a state has a history
-			# of length L_max - 1.
+	# 		# So has_smaller_hist should only be True if a state has a history
+	# 		# of length L_max - 1.
 
-			if L_max == 1:
-				has_smaller_hist = True
-			else:
-				has_smaller_hist = False
+	# 		if L_max == 1:
+	# 			has_smaller_hist = True
+	# 		else:
+	# 			has_smaller_hist = False
 
-				for candidate in invepsilon[state]:
-					if len(candidate[0]) == L_max - 1:
-						has_smaller_hist = True
-						break
+	# 			for candidate in invepsilon[state]:
+	# 				if len(candidate[0]) == L_max - 1:
+	# 					has_smaller_hist = True
+	# 					break
 
-			if has_smaller_hist:
-				for candidate in invepsilon[state]:
-					morph_by_history = [word_lookup_fut[('{}{}'.format(candidate[0], e_symbol[0]), '{}{}'.format(candidate[1], e_symbol[1]))] for e_symbol in e_symbols]
+	# 		if has_smaller_hist:
+	# 			for candidate in invepsilon[state]:
+	# 				morph_by_history = [word_lookup_fut[('{}{}'.format(candidate[0], e_symbol[0]), '{}{}'.format(candidate[1], e_symbol[1]))] for e_symbol in e_symbols]
 
-					for emission_ind in range(len(e_symbols)):
-						morph_by_state[state][emission_ind] += morph_by_history[emission_ind]
-			else:
-				for candidate in invepsilon[state]:
-					morph_by_history = [word_lookup_fut[('{}{}'.format(candidate[0][1:L_max], e_symbol[0]), '{}{}'.format(candidate[1][1:L_max], e_symbol[1]))] for e_symbol in e_symbols]
+	# 				for emission_ind in range(len(e_symbols)):
+	# 					morph_by_state[state][emission_ind] += morph_by_history[emission_ind]
+	# 		else:
+	# 			for candidate in invepsilon[state]:
+	# 				morph_by_history = [word_lookup_fut[('{}{}'.format(candidate[0][1:L_max], e_symbol[0]), '{}{}'.format(candidate[1][1:L_max], e_symbol[1]))] for e_symbol in e_symbols]
 
-					for emission_ind in range(len(e_symbols)):
-						morph_by_state[state][emission_ind] += morph_by_history[emission_ind]
+	# 				for emission_ind in range(len(e_symbols)):
+	# 					morph_by_state[state][emission_ind] += morph_by_history[emission_ind]
 
 	
 	if fname == None:
