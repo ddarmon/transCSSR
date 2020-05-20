@@ -1797,13 +1797,20 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 				sX = stringX[r_ind]
 				sY = stringY[r_ind]
 
-				filtered_states, filtered_probs, stringY_pred = filter_and_predict(sX, sY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max)
+				filtered_states, filtered_probs, stringY_pred = filter_and_predict(sX, sY, epsilon, invepsilon, morph_by_state_old, axs, ays, e_symbols, L_max)
 
 				for t, state in enumerate(filtered_states):
 					if state == -1:
 						pass
 					else:
 						morph_by_state[state][ays_to_ind[sY[t]]] += 1
+
+					# Debugging mis-filtering for initial states (200520):
+					# if morph_by_state[2][0] == 1:
+					# 	for ti in range(10):
+					# 		print(filtered_states[ti], filtered_probs[ti], sY[ti])
+
+					# 	import ipdb; ipdb.set_trace()
 
 	# NOT DONE: Re-estimate morph_by_state using the final epsilon-transducer.
 	# This is meant to handle when absorbing states from a split that
@@ -2013,8 +2020,6 @@ def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, ax
 	# we don't loop *forever* in the case where we never synchronize.
 	
 	while s0 == -1 and len(filtered_states) < len(stringX): # In case we fail to synchronize at the first time we can...
-		num_ahead += 1
-		
 		if memoryless:
 			s0 = epsilon.get((stringX[num_ahead:L+num_ahead], 'n'*L), -1)
 		else:
@@ -2025,13 +2030,15 @@ def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, ax
 		# The input at the current time step (cur_x), and
 		# its order in the alphabet axs.
 	
-		cur_x = stringX[L+num_ahead]
+		cur_x = stringX[L+num_ahead+1]
 		cur_x_ord = input_lookup[cur_x]
 		
 		if s0 == -1:
 			filtered_probs.append(0.5)
 		else:
 			filtered_probs.append(prob_by_state[s0][len(ays)*cur_x_ord + 1])
+
+		num_ahead += 1
 
 	for ind in range(L-1+num_ahead, len(stringX)-1):
 		e_symbol = (stringX[ind], stringY[ind])
@@ -5135,4 +5142,4 @@ def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, 
 
 	output = {'epsilon' : epsilon, 'invepsilon' : invepsilon, 'morph_by_state' : morph_by_state, 'L_opt' : L_opt, 'bic_by_L' : bic_by_L, 'num_states_by_L' : num_states_by_L}
 
-	return(output)
+	return output
