@@ -2018,8 +2018,8 @@ def filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, ax
 	
 	# The second condition in this statement makes sure that
 	# we don't loop *forever* in the case where we never synchronize.
-	
-	while s0 == -1 and len(filtered_states) < len(stringX): # In case we fail to synchronize at the first time we can...
+
+	while s0 == -1 and len(filtered_states) < len(stringX)-1: # In case we fail to synchronize at the first time we can...
 		if memoryless:
 			s0 = epsilon.get((stringX[num_ahead:L+num_ahead], 'n'*L), -1)
 		else:
