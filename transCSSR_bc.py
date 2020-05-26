@@ -2393,7 +2393,7 @@ def load_transition_matrix_machine(fname, inf_alg):
 				states[to_state]   = True
 				
 				if inf_alg == 'CSSR':
-					transitions = line.split('\"')[1].split('   ')
+					transitions = [line.split('\"')[1].strip(), '']
 				elif inf_alg == 'transCSSR':
 					transitions = line.split('\"')[1].split('\l')
 				
@@ -2643,7 +2643,7 @@ def compute_conditional_measures(machine_fname, transducer_fname, axs, ays, inf_
 	P, T_states, M_states, T_trans, M_trans = compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg)
 	
 	stationary_dist_mixed, stationary_dist_eT = compute_channel_states_distribution(P, M_states, T_states)
-	
+
 	C_X = -numpy.sum(stationary_dist_eT*numpy.log2(stationary_dist_eT))
 	
 	h_X = 0.
