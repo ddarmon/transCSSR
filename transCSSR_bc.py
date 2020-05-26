@@ -2392,7 +2392,10 @@ def load_transition_matrix_machine(fname, inf_alg):
 				states[from_state] = True
 				states[to_state]   = True
 				
-				transitions = line.split('\"')[1].split('\l')
+				if inf_alg == 'CSSR':
+					transitions = line.split('\"')[1].split('   ')
+				elif inf_alg == 'transCSSR':
+					transitions = line.split('\"')[1].split('\l')
 				
 				for transition in transitions[:-1]:
 					if inf_alg == 'CSSR':
@@ -2406,6 +2409,7 @@ def load_transition_matrix_machine(fname, inf_alg):
 						p = float(transition.split(':')[1].strip())
 					
 					trans_matrix[(from_state, x)] = (to_state, p)
+
 	return trans_matrix, list(states.keys())
 
 def compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg):
