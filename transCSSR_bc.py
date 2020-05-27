@@ -3590,8 +3590,6 @@ def simulate_eM_fast(N, machine_fname, axs, inf_alg, initial_state = None, M_sta
 		P, M_states_to_index, M_trans = compute_eM_transition_matrix(machine_fname, axs, inf_alg = inf_alg)
 
 		stationary_dist_mixed, stationary_dist_eM = compute_channel_states_distribution(P, {'A' : 0}, M_states_to_index)
-	
-	import ipdb; ipdb.set_trace()
 
 	M_index_to_states = {}
 	
