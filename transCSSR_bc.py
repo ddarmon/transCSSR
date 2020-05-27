@@ -3007,19 +3007,35 @@ def compute_eM_transition_matrix(machine_fname, axs, inf_alg):
 	for s, M_state in enumerate(M_states):
 		M_states_to_index[M_state] = s
 
-	# Populate P by traversing *from* each
-	# causal state, and accumulating the probability
-	# for the states transitioned *to*.
+	# Make sure sum over outgoing arrows equals
+	# 1, which can fail to occur due to rounding.
 
 	for SM in M_states:
+		trans_probs = numpy.zeros(len(axs))
+
 		j_from = M_states_to_index[SM]
 	
 		M_offset_from = j_from
 	
-		for ax in axs:
+		for ax_ind, ax in enumerate(axs):
 			SM_to, pM_to = M_trans.get((SM, ax), (None, 0))
-		
+
+			trans_probs[ax_ind] = pM_to
+
+		trans_probs = trans_probs / numpy.sum(trans_probs)
+
+		# Populate P by traversing *from* each
+		# causal state, and accumulating the probability
+		# for the states transitioned *to*.
+
+		for ax_ind, ax in enumerate(axs):
+			SM_to, pM_to = M_trans.get((SM, ax), (None, 0))
+
 			if SM_to != None:
+				pM_to = trans_probs[ax_ind]
+
+				M_trans[(SM, ax)] = (SM_to, pM_to)
+
 				j_to = M_states_to_index[SM_to]
 		
 				M_offset_to = j_to
@@ -3575,6 +3591,8 @@ def simulate_eM_fast(N, machine_fname, axs, inf_alg, initial_state = None, M_sta
 
 		stationary_dist_mixed, stationary_dist_eM = compute_channel_states_distribution(P, {'A' : 0}, M_states_to_index)
 	
+	import ipdb; ipdb.set_trace()
+
 	M_index_to_states = {}
 	
 	for state in list(M_states_to_index.keys()):
