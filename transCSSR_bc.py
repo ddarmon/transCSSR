@@ -4498,17 +4498,13 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 
 	return pred_probs_by_time, cur_states_by_time
 
-def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_states_to_index = None, M_trans = None, stationary_dist_eM = None):
+def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_states_to_index = None, M_trans = None, stationary_dist_eM = None, verbose = False):
 	"""
 	Compute i(nformation- and) c(omputation-) t(heoretic) measures from an $\epsilon$-machine stored in dot format.
-
 	We use the spectral representation of the process via its mixed
 	state presentation, as described in
-
 	J. P. Crutchfield, C. J. Ellison, and P. M. Riechers, "Exact complexity: The spectral decomposition of intrinsic computation," Physics Letters A, vol. 380, no. 9, pp. 998-1002, Mar. 2016. [arXiv](https://arxiv.org/abs/1309.3792).
-
 	which we refer to as CER throughout.
-
 	Parameters
 	----------
 	machine_fname : string
@@ -4523,7 +4519,9 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 			and excess entropy.
 	to_plot : boolean
 			Whether or not to plot the intermediate results.
-
+	verbose : boolean
+			Whether to output what stage of the computation
+			is currently running.
 	Returns
 	-------
 	HLs : numpy.array
@@ -4550,16 +4548,13 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 	etas_matrix : numpy.matrix
 			The states associated with the mixed
 			state presentation of the process.
-
 	Notes
 	-----
 	Any notes go here.
-
 	Examples
 	--------
 	>>> import module_name
 	>>> # Demonstrate code here.
-
 	"""
 
 	if stationary_dist_eM == None:
@@ -4637,7 +4632,8 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 
 				# The candidate mixed state.
 
-				eta = numer/(numer*Is)
+				with numpy.errstate(divide='ignore', invalid = 'ignore'):
+					eta = numer/(numer*Is)
 
 				if numpy.sum(numpy.isnan(eta)) != len(M_states_to_index): # The candidate mixed state can't be all NaNs
 					# print(x, eta)
@@ -4683,6 +4679,9 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 	#
 	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+	if etas_matrix.shape[0] > 1000:
+		raise ValueError('Error: Number of mixed states too big. Cannot compute all measures.')
+
 	W_x = {}
 
 	for x_ind, x in enumerate(axs):
@@ -4699,7 +4698,8 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 			# else:
 			# 	eta1 = numer/(numer*Is)
 
-			eta1 = numer/(numer*Is)
+			with numpy.errstate(divide='ignore', invalid = 'ignore'):
+				eta1 = numer/(numer*Is)
 
 			if numpy.sum(numpy.isnan(eta1)) != len(M_states_to_index):
 				diff_dists = numpy.mean(numpy.abs(etas_matrix - eta1), 1)
@@ -4730,8 +4730,12 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 	# usual way when W is diagonalizable. See section
 	# *Spectral decomposition* on page 1000 of CER.
 
-	D, Pl, Pr = scipy.linalg.eig(W, left = True, right = True)
+	# Non-sparse version that computes full eigendecomposition
+	# D_nsp, Pl_nsp, Pr_nsp = scipy.linalg.eig(W, left = True, right = True)
 
+	D, Pl = scipy.sparse.linalg.eigs(W.T, k=1)
+
+	# import ipdb; ipdb.set_trace()
 
 	# Compute the projection operators W_{\lambda} associated
 	# with each eigenvalue.
@@ -4751,33 +4755,35 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 
 	# This only works when W is diagonalizable:
 
-	W_lam = {}
+	# W_lam = {}
 
-	Id = numpy.eye(D.shape[0])
+	# Id = numpy.eye(D.shape[0])
 
-	arg_eig_1 = numpy.isclose(D, 1.0).nonzero()[0][0]
+	# arg_eig_1 = numpy.isclose(D, 1.0).nonzero()[0][0]
 
-	for eigval_ind, eigval in enumerate(D):
-		W_lam[eigval] = Id.copy()
+	# for eigval_ind, eigval in enumerate(D):
+	# 	W_lam[eigval] = Id.copy()
 
-		for eigval2 in D:
-			if eigval == eigval2:
-				pass
-			else:
-				# W_lam[eigval] = ((W - eigval2*Id)/(eigval - eigval2))*W_lam[eigval]
-				W_lam[eigval] = W_lam[eigval]*((W - eigval2*Id)/(eigval - eigval2))
+	# 	for eigval2 in D:
+	# 		if eigval == eigval2:
+	# 			pass
+	# 		else:
+	# 			# W_lam[eigval] = ((W - eigval2*Id)/(eigval - eigval2))*W_lam[eigval]
+	# 			W_lam[eigval] = W_lam[eigval]*((W - eigval2*Id)/(eigval - eigval2))
 
 	# |H(W^{\mathcal{X}})> is the transition uncertainty
 	# (i.e. specific entropy rate) associated with each 
 	# mixed state.
 
-	HWA = -numpy.nansum(numpy.multiply(numpy.log2(W),W), 1).T
+	# import ipdb; ipdb.set_trace()
+	with numpy.errstate(divide='ignore', invalid = 'ignore'):
+		HWA = -numpy.nansum(numpy.multiply(numpy.log2(W),W), 1).T
 
 	# Compute the stationary distribution for the mixed states
 	# using the eigenvector of W that corresponds to an
 	# eigenvalue of 1.
 
-	v_eig_1   = Pl[:, arg_eig_1].T
+	v_eig_1   = Pl.T
 	mixed_state_stationary_dist   = numpy.real(v_eig_1/numpy.sum(v_eig_1))
 
 	# plt.figure()
@@ -4794,7 +4800,7 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 
 	Cmu = 0.
 
-	for p in mixed_state_stationary_dist:
+	for p in mixed_state_stationary_dist[0]:
 		if not numpy.isclose(p, 0.0):
 			Cmu += -p*numpy.log2(p)
 
@@ -4806,7 +4812,7 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 	delta_eta = numpy.matrix(numpy.zeros(etas_matrix.shape[0]))
 	delta_eta[0, 0] = 1.
 
-	hmu2 = float(numpy.real(delta_eta*W_lam[D[arg_eig_1]]*HWA.T))
+	# hmu2 = float(numpy.real(delta_eta*W_lam[D[arg_eig_1]]*HWA.T))
 
 	# print('The entropy rates using the stationary distribution over the mixed states and W_{{1}} are:\n{}\n{}'.format(hmu, hmu2))
 
@@ -4814,8 +4820,8 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 
 	Wprod = numpy.matrix(numpy.eye(etas_matrix.shape[0]))
 
-	if L_max < 1000:
-		L_use = 2000
+	if L_max < 100:
+		L_use = 200
 	else:
 		L_use = 2*L_max
 
@@ -4861,6 +4867,7 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 	# print('The Excess Entropy E is: {} ({}, {})'.format(E, cumsum_E[-1], ELs2[-1]))
 
 	return HLs[:L_max], hLs[:L_max], hmu, ELs[:L_max], E, Cmu, etas_matrix
+
 
 def generate_word_probs_eM(Yt_name, ays, wordlength = 5, inf_alg = 'transCSSR'):
 	"""
