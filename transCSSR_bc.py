@@ -4650,6 +4650,9 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 					else: # No new mixed state was generated.
 						pass
 
+		if etas_matrix.shape[0] > 10000:
+			raise ValueError('Number of mixed states too big. Cannot compute all measures.')
+
 		etas_cur = etas_new[1:, :].copy()
 		etas_new = numpy.matrix([numpy.nan]*len(M_states_to_index))
 
@@ -4680,7 +4683,7 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 	if etas_matrix.shape[0] > 1000:
-		raise ValueError('Error: Number of mixed states too big. Cannot compute all measures.')
+		raise ValueError('Number of mixed states too big. Cannot compute all measures.')
 
 	W_x = {}
 
