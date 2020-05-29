@@ -4682,9 +4682,6 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 	#
 	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-	if etas_matrix.shape[0] > 1000:
-		raise ValueError('Number of mixed states too big. Cannot compute all measures.')
-
 	W_x = {}
 
 	for x_ind, x in enumerate(axs):
