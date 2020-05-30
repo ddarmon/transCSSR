@@ -4498,7 +4498,7 @@ def filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs
 
 	return pred_probs_by_time, cur_states_by_time
 
-def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_states_to_index = None, M_trans = None, stationary_dist_eM = None, verbose = False):
+def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_states_to_index = None, M_trans = None, stationary_dist_eM = None, verbose = False, max_mixed_states = 20000):
 	"""
 	Compute i(nformation- and) c(omputation-) t(heoretic) measures from an $\epsilon$-machine stored in dot format.
 	We use the spectral representation of the process via its mixed
@@ -4650,7 +4650,7 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 					else: # No new mixed state was generated.
 						pass
 
-		if etas_matrix.shape[0] > 20000:
+		if etas_matrix.shape[0] > max_mixed_states:
 			raise ValueError('Number of mixed states too big. Cannot compute all measures.')
 
 		etas_cur = etas_new[1:, :].copy()
