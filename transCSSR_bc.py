@@ -4736,7 +4736,22 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 	# Non-sparse version that computes full eigendecomposition
 	# D_nsp, Pl_nsp, Pr_nsp = scipy.linalg.eig(W, left = True, right = True)
 
-	D, Pl = scipy.sparse.linalg.eigs(W.T, k=1)
+	# By-default, scipy.sparse.linalg.eigs() will use the
+	# non-sparse eig() when the matrix is (k+1)x(k+1) or
+	# smaller, so account for this:
+
+	if W.shape[0] <= 2:
+		D_nsp, Pl_nsp, Pr_nsp = scipy.linalg.eig(W, left = True, right = True)
+
+		D = D_nsp[0]
+		Pl = Pl_nsp[:, 0]
+
+		# Make sure we are getting the eigenvector corresponding
+		# to the stationary distribution
+
+		assert(numpy.isclose(D, 1))
+	else:
+		D, Pl = scipy.sparse.linalg.eigs(W.T, k=1)
 
 	# import ipdb; ipdb.set_trace()
 
@@ -4803,9 +4818,14 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 
 	Cmu = 0.
 
-	for p in mixed_state_stationary_dist[0]:
-		if not numpy.isclose(p, 0.0):
-			Cmu += -p*numpy.log2(p)
+	if mixed_state_stationary_dist.shape[0] == 1:
+		# The statistical complexity of a 
+		# 1-state eM is 0.
+		pass
+	else:
+		for p in mixed_state_stationary_dist:
+			if not numpy.isclose(p, 0.0):
+				Cmu += -p*numpy.log2(p)
 
 	# Compute the entropy rate of the epsilon-machine
 	# as per Equation 7 of CER.
