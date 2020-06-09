@@ -4753,6 +4753,14 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 	else:
 		D, Pl = scipy.sparse.linalg.eigs(W.T, k=1)
 
+		Pl = Pl.flatten() # Need to flatten so this Pl and the Pl above are both 1D arrays
+
+		# eigs() sometimes returns numerical fuzz in the form of entries that
+		# are very nearly zero but the wrong sign, so account for this:
+
+		Pl = Pl/numpy.sum(Pl)
+		Pl[Pl < 0] = 0.
+
 	# import ipdb; ipdb.set_trace()
 
 	# Compute the projection operators W_{\lambda} associated
@@ -4826,6 +4834,8 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 		for p in mixed_state_stationary_dist:
 			if not numpy.isclose(p, 0.0):
 				Cmu += -p*numpy.log2(p)
+
+	import ipdb; ipdb.set_trace()
 
 	# Compute the entropy rate of the epsilon-machine
 	# as per Equation 7 of CER.
