@@ -4835,8 +4835,6 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 			if not numpy.isclose(p, 0.0):
 				Cmu += -p*numpy.log2(p)
 
-	import ipdb; ipdb.set_trace()
-
 	# Compute the entropy rate of the epsilon-machine
 	# as per Equation 7 of CER.
 
