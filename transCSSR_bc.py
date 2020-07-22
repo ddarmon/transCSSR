@@ -2412,6 +2412,7 @@ def load_transition_matrix_machine(fname, inf_alg):
 
 	return trans_matrix, list(states.keys())
 
+
 def compute_mixed_transition_matrix(machine_fname, transducer_fname, axs, ays, inf_alg):
 	"""
 	Given an epsilon-machine for the input process and an epsilon-transducer
@@ -2942,7 +2943,7 @@ def predict_presynch_eM(stringX, machine_fname, axs, inf_alg, M_states_to_index 
 
 	return pred_probs, cur_states
 
-def compute_eM_transition_matrix(machine_fname, axs, inf_alg):
+def compute_eM_transition_matrix(machine_fname, axs, inf_alg, trans_mat_by_symbol = False):
 	"""
 	Given an epsilon-machine compute_transition_matrix returns
 	the transition matrix for the causal states.
@@ -2956,6 +2957,9 @@ def compute_eM_transition_matrix(machine_fname, axs, inf_alg):
 	inf_alg : string
 			The inference algorithm used to estimate the machine.
 			One of {'CSSR', 'transCSSR'}
+	trans_mat_by_symbol : boolean
+			Whether the transition matrices should be broken down
+			by symbol or not (default).
 
 	Returns
 	-------
@@ -2997,7 +3001,13 @@ def compute_eM_transition_matrix(machine_fname, axs, inf_alg):
 	# compute the *right* eigenvectors of the transition matrix
 	# instead of the left eigenvectors.
 
-	P = numpy.zeros(shape = (num_states, num_states))
+	if trans_mat_by_symbol:
+		P = dict()
+
+		for ax in axs:
+			P[ax] = numpy.zeros(shape = (num_states, num_states))
+	else:
+		P = numpy.zeros(shape = (num_states, num_states))
 
 	# Create an ordered lookup for the transducer and 
 	# machine states.
@@ -3039,8 +3049,11 @@ def compute_eM_transition_matrix(machine_fname, axs, inf_alg):
 				j_to = M_states_to_index[SM_to]
 		
 				M_offset_to = j_to
-			
-				P[M_offset_to, M_offset_from] += pM_to
+				
+				if trans_mat_by_symbol:
+					P[ax][M_offset_to, M_offset_from] += pM_to
+				else:
+					P[M_offset_to, M_offset_from] += pM_to
 
 	return P, M_states_to_index, M_trans
 
