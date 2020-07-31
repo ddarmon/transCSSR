@@ -1348,6 +1348,12 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 	>>> # Demonstrate code here.
 
 	"""
+
+	# Create the transCSSR_results directory of it does not
+	# already exist.
+
+	if not os.path.isdir('transCSSR_results'):
+		os.mkdir('transCSSR_results')
 	
 	# epsilon maps from histories to their associated causal states.
 
@@ -5227,6 +5233,33 @@ def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, 
 	return output
 
 def computational_mechanics_bootstrap(stringY, ays, Yt_name_inf, L_max = None, B = 2000, alpha = 0.001, show_plots = True, remove_bootstrap_files = True):
+
+	if not os.path.isdir('transCSSR_results'):
+		os.mkdir('transCSSR_results')
+
+	if not os.path.isfile('transCSSR_results/+.dot'):
+		dot_file = """
+		digraph  {
+		size = "6,8.5";
+		ratio = "fill";
+		node
+		[shape = circle];
+		node [fontsize = 24];
+		node [penwidth = 5];
+		edge [fontsize = 24];
+		node [fontname = "CMU Serif Roman"];
+		graph [fontname = "CMU Serif Roman"];
+		edge [fontname = "CMU Serif Roman"];
+		A -> A [label = "0|0:1.0\\l"];
+		}
+		"""
+
+		with open('transCSSR_results/+.dot', 'w') as sname:
+			sname.write(dot_file)
+
+	if not os.path.isdir('transCSSR_results/bootstrap_tmp_files'):
+		os.mkdir('transCSSR_results/bootstrap_tmp_files')
+
 	N = len(stringY)
 
 	if L_max is None:
@@ -5347,6 +5380,6 @@ def computational_mechanics_bootstrap(stringY, ays, Yt_name_inf, L_max = None, B
 	if show_plots:
 		plt.show()
 
-	out = {'measures' : measures_inf, 'C' : C_dict, 'cc' : cc_dict, 'P' : P_dict, 'Q' : quant_dict}
+	out = {'measures' : measures_inf, 'boot_measures' : theta_bs, 'C' : C_dict, 'cc' : cc_dict, 'P' : P_dict, 'Q' : quant_dict}
 
 	return out
