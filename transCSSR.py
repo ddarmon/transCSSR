@@ -4597,321 +4597,334 @@ def compute_ict_measures(machine_fname, axs, inf_alg, L_max, to_plot = False, M_
 	for state in M_states_to_index:
 		M_index_to_states[M_states_to_index[state]] = state
 
-	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	# Determine all of the mixed states induced by evolving
-	# the stationary distribution forward under all possible
-	# words, as per *Mixed-state presentation* on page 999 of CER.
-	# 
-	# Namely, if we concatenate the probability of being in each state 
-	# causal state into a row vector, then the distribution over causal
-	# states L steps into the future is given by
-	# 
-	# \eta_{t + L} \prop \eta_{t} * T^{w_{1}^{L}}
-	#
-	# where T^{w} is the matrix containing the probability of
-	# transitioning from state i to state j and emitting a w,
-	# and T^{w_{1}^{L}} is the product of these matrices.
-	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	if len(M_states_to_index) == 1: # Process is IID
+		make_null_input_dot()
 
-	# Begin with the mixed state corresponding to the stationary
-	# distribution over the causal states.
+		Cmu, hmu = compute_conditional_measures('transCSSR_results/+.dot', machine_fname, ['0'], axs, inf_alg)
 
-	eta = numpy.matrix(stationary_dist_eM)
+		hLs = [hmu]*L_max
+		HLs = numpy.cumsum(hLs)
 
-	Is = numpy.matrix(numpy.ones(len(M_states_to_index))).T
+		ELs = [0]*L_max
+		E = 0
 
-	# Form the T^{w} matrices.
+		etas_matrix = None
+	else:
+		#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		# Determine all of the mixed states induced by evolving
+		# the stationary distribution forward under all possible
+		# words, as per *Mixed-state presentation* on page 999 of CER.
+		# 
+		# Namely, if we concatenate the probability of being in each state 
+		# causal state into a row vector, then the distribution over causal
+		# states L steps into the future is given by
+		# 
+		# \eta_{t + L} \prop \eta_{t} * T^{w_{1}^{L}}
+		#
+		# where T^{w} is the matrix containing the probability of
+		# transitioning from state i to state j and emitting a w,
+		# and T^{w_{1}^{L}} is the product of these matrices.
+		#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-	T_x = {}
+		# Begin with the mixed state corresponding to the stationary
+		# distribution over the causal states.
 
-	for x_ind, x in enumerate(axs):
-		T_x[x] = numpy.matrix(numpy.zeros((len(M_states_to_index), len(M_states_to_index))))
+		eta = numpy.matrix(stationary_dist_eM)
 
-	for S0 in M_states_to_index:
-		for x in axs:
-			S1, p = M_trans.get((S0, x), (None, 0.0))
+		Is = numpy.matrix(numpy.ones(len(M_states_to_index))).T
 
-			if S1 is not None:
-				T_x[x][M_states_to_index[S0], M_states_to_index[S1]] = p
+		# Form the T^{w} matrices.
 
-	# Continue determining the new mixed states by direct
-	# concatenation of symbols until no new mixed state
-	# occurs.
+		T_x = {}
 
-	new_states = True
+		for x_ind, x in enumerate(axs):
+			T_x[x] = numpy.matrix(numpy.zeros((len(M_states_to_index), len(M_states_to_index))))
 
-	etas_matrix = eta.copy()
-	etas_cur	= eta.copy()
-	etas_new = numpy.matrix([numpy.nan]*len(M_states_to_index))
-
-	while new_states:
-		new_states = False
-		for row_ind in range(etas_cur.shape[0]):
+		for S0 in M_states_to_index:
 			for x in axs:
-				new_states = True
-				eta = etas_cur[row_ind,:]
+				S1, p = M_trans.get((S0, x), (None, 0.0))
 
-				numer = eta*T_x[x]
+				if S1 is not None:
+					T_x[x][M_states_to_index[S0], M_states_to_index[S1]] = p
 
-				# if numer*Is == 0.:
-				# 	eta[:] = numpy.nan
-				# else:
-				# 	eta = numer/(numer*Is)
+		# Continue determining the new mixed states by direct
+		# concatenation of symbols until no new mixed state
+		# occurs.
 
-				# The candidate mixed state.
+		new_states = True
 
-				with numpy.errstate(divide='ignore', invalid = 'ignore'):
-					eta = numer/(numer*Is)
-
-				if numpy.sum(numpy.isnan(eta)) != len(M_states_to_index): # The candidate mixed state can't be all NaNs
-					# print(x, eta)
-
-					# Consider the candidate mixed state the same as previous mixed states
-					# if it agrees in TVD with an existing mixed state with a given level
-					# of precision, specified by diff_tol.
-
-					diff_dists = numpy.mean(numpy.abs(etas_matrix - eta), 1)
-
-					match_ind = (diff_dists < diff_tol).nonzero()
-
-					if len(match_ind[0]) == 0: # A new mixed state was generated
-						new_states = True
-
-						etas_new = numpy.vstack((etas_new, eta))
-						etas_matrix = numpy.vstack((etas_matrix, eta))
-					else: # No new mixed state was generated.
-						pass
-			if verbose == True:
-				print("{} mixed states".format(etas_matrix.shape[0]))
-		if etas_matrix.shape[0] > max_mixed_states:
-			raise ValueError('Number of mixed states too big. Cannot compute all measures.')
-
-		etas_cur = etas_new[1:, :].copy()
+		etas_matrix = eta.copy()
+		etas_cur	= eta.copy()
 		etas_new = numpy.matrix([numpy.nan]*len(M_states_to_index))
 
-	# plt.figure()
-	# plt.imshow(etas_matrix)
-	# plt.show()
-	# print(etas_matrix)
+		while new_states:
+			new_states = False
+			for row_ind in range(etas_cur.shape[0]):
+				for x in axs:
+					new_states = True
+					eta = etas_cur[row_ind,:]
 
-	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	#
-	# Construct the mixed state transition matrices W^{(x)},
-	# which gives the probability of transitioning from
-	# a mixed state to another mixed state and emitting
-	# a word x, again as per *Mixed-state presentation*
-	# on page 999 of CER.
-	# 
-	# Recall that 
-	# 
-	#  P(\eta_{t + 1}, x | \eta_{t}) = P(x | \eta_{t})
-	# 
-	# and that
-	# 
-	#  P(x | \eta_{t}) = \eta * T^{(x)} * 1vec
-	# 
-	# which therefore gives us the way to construct
-	# the transition matrices W^{(x)}.
-	#
-	#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+					numer = eta*T_x[x]
 
-	W_x = {}
+					# if numer*Is == 0.:
+					# 	eta[:] = numpy.nan
+					# else:
+					# 	eta = numer/(numer*Is)
 
-	for x_ind, x in enumerate(axs):
-		W_x[x] = numpy.matrix(numpy.zeros((etas_matrix.shape[0], etas_matrix.shape[0])))
+					# The candidate mixed state.
 
-	for row_ind in range(etas_matrix.shape[0]):
-		eta0 = etas_matrix[row_ind, :]
+					with numpy.errstate(divide='ignore', invalid = 'ignore'):
+						eta = numer/(numer*Is)
+
+					if numpy.sum(numpy.isnan(eta)) != len(M_states_to_index): # The candidate mixed state can't be all NaNs
+						# print(x, eta)
+
+						# Consider the candidate mixed state the same as previous mixed states
+						# if it agrees in TVD with an existing mixed state with a given level
+						# of precision, specified by diff_tol.
+
+						diff_dists = numpy.mean(numpy.abs(etas_matrix - eta), 1)
+
+						match_ind = (diff_dists < diff_tol).nonzero()
+
+						if len(match_ind[0]) == 0: # A new mixed state was generated
+							new_states = True
+
+							etas_new = numpy.vstack((etas_new, eta))
+							etas_matrix = numpy.vstack((etas_matrix, eta))
+						else: # No new mixed state was generated.
+							pass
+				if verbose == True:
+					print("{} mixed states".format(etas_matrix.shape[0]))
+			if etas_matrix.shape[0] > max_mixed_states:
+				raise ValueError('Number of mixed states too big. Cannot compute all measures.')
+
+			etas_cur = etas_new[1:, :].copy()
+			etas_new = numpy.matrix([numpy.nan]*len(M_states_to_index))
+
+		# plt.figure()
+		# plt.imshow(etas_matrix)
+		# plt.show()
+		# print(etas_matrix)
+
+		#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+		#
+		# Construct the mixed state transition matrices W^{(x)},
+		# which gives the probability of transitioning from
+		# a mixed state to another mixed state and emitting
+		# a word x, again as per *Mixed-state presentation*
+		# on page 999 of CER.
+		# 
+		# Recall that 
+		# 
+		#  P(\eta_{t + 1}, x | \eta_{t}) = P(x | \eta_{t})
+		# 
+		# and that
+		# 
+		#  P(x | \eta_{t}) = \eta * T^{(x)} * 1vec
+		# 
+		# which therefore gives us the way to construct
+		# the transition matrices W^{(x)}.
+		#
+		#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+		W_x = {}
+
+		for x_ind, x in enumerate(axs):
+			W_x[x] = numpy.matrix(numpy.zeros((etas_matrix.shape[0], etas_matrix.shape[0])))
+
+		for row_ind in range(etas_matrix.shape[0]):
+			eta0 = etas_matrix[row_ind, :]
+
+			for x in axs:
+				numer = eta0*T_x[x]
+
+				# if numer*Is == 0.:
+				# 	eta1 = [numpy.nan]*eta0.shape[0]
+				# else:
+				# 	eta1 = numer/(numer*Is)
+
+				with numpy.errstate(divide='ignore', invalid = 'ignore'):
+					eta1 = numer/(numer*Is)
+
+				if numpy.sum(numpy.isnan(eta1)) != len(M_states_to_index):
+					diff_dists = numpy.mean(numpy.abs(etas_matrix - eta1), 1)
+
+					col_ind = (diff_dists < diff_tol).nonzero()[0]
+
+					W_x[x][row_ind, col_ind] = numer*Is
+
+		# W is the overall transition matrix between the mixed
+		# states, given by marginalizing over x:
+
+		W = numpy.matrix(numpy.zeros((etas_matrix.shape[0], etas_matrix.shape[0])))
 
 		for x in axs:
-			numer = eta0*T_x[x]
+			W += W_x[x]
 
-			# if numer*Is == 0.:
-			# 	eta1 = [numpy.nan]*eta0.shape[0]
-			# else:
-			# 	eta1 = numer/(numer*Is)
+		# Make sure everything sums to 1 along rows, which
+		# should happen in theory, but may get lost due to
+		# numerical inaccuracy.
 
-			with numpy.errstate(divide='ignore', invalid = 'ignore'):
-				eta1 = numer/(numer*Is)
+		row_sums = numpy.array(numpy.nansum(W, 1)).flatten()
 
-			if numpy.sum(numpy.isnan(eta1)) != len(M_states_to_index):
-				diff_dists = numpy.mean(numpy.abs(etas_matrix - eta1), 1)
+		for row_ind in range(W.shape[0]):
+			W[row_ind, :] = W[row_ind, :]/row_sums[row_ind]
 
-				col_ind = (diff_dists < diff_tol).nonzero()[0]
+		# Compute the spectral decomposition of W, which 
+		# determines the properties of powers of W in the
+		# usual way when W is diagonalizable. See section
+		# *Spectral decomposition* on page 1000 of CER.
 
-				W_x[x][row_ind, col_ind] = numer*Is
+		# Non-sparse version that computes full eigendecomposition
+		# D_nsp, Pl_nsp, Pr_nsp = scipy.linalg.eig(W, left = True, right = True)
 
-	# W is the overall transition matrix between the mixed
-	# states, given by marginalizing over x:
+		# By-default, scipy.sparse.linalg.eigs() will use the
+		# non-sparse eig() when the matrix is (k+1)x(k+1) or
+		# smaller, so account for this:
 
-	W = numpy.matrix(numpy.zeros((etas_matrix.shape[0], etas_matrix.shape[0])))
+		if W.shape[0] <= 2:
+			D_nsp, Pl_nsp, Pr_nsp = scipy.linalg.eig(W, left = True, right = True)
 
-	for x in axs:
-		W += W_x[x]
+			D = D_nsp[0]
+			Pl = Pl_nsp[:, 0]
 
-	# Make sure everything sums to 1 along rows, which
-	# should happen in theory, but may get lost due to
-	# numerical inaccuracy.
+			# Make sure we are getting the eigenvector corresponding
+			# to the stationary distribution
 
-	row_sums = numpy.array(numpy.nansum(W, 1)).flatten()
+			assert(numpy.isclose(D, 1))
+		else:
+			D, Pl = scipy.sparse.linalg.eigs(W.T, k=1)
 
-	for row_ind in range(W.shape[0]):
-		W[row_ind, :] = W[row_ind, :]/row_sums[row_ind]
+			Pl = Pl.flatten() # Need to flatten so this Pl and the Pl above are both 1D arrays
 
-	# Compute the spectral decomposition of W, which 
-	# determines the properties of powers of W in the
-	# usual way when W is diagonalizable. See section
-	# *Spectral decomposition* on page 1000 of CER.
+			# eigs() sometimes returns numerical fuzz in the form of entries that
+			# are very nearly zero but the wrong sign, so account for this:
 
-	# Non-sparse version that computes full eigendecomposition
-	# D_nsp, Pl_nsp, Pr_nsp = scipy.linalg.eig(W, left = True, right = True)
+			Pl = Pl/numpy.sum(Pl)
+			Pl[Pl < 0] = 0.
 
-	# By-default, scipy.sparse.linalg.eigs() will use the
-	# non-sparse eig() when the matrix is (k+1)x(k+1) or
-	# smaller, so account for this:
+		# import ipdb; ipdb.set_trace()
 
-	if W.shape[0] <= 2:
-		D_nsp, Pl_nsp, Pr_nsp = scipy.linalg.eig(W, left = True, right = True)
+		# Compute the projection operators W_{\lambda} associated
+		# with each eigenvalue.
 
-		D = D_nsp[0]
-		Pl = Pl_nsp[:, 0]
+		# This only works for eigenvalues that have algebraic multiplicity
+		# of 1:
 
-		# Make sure we are getting the eigenvector corresponding
-		# to the stationary distribution
+		# W_lam = {}
 
-		assert(numpy.isclose(D, 1))
-	else:
-		D, Pl = scipy.sparse.linalg.eigs(W.T, k=1)
+		# for eigval_ind, eigval in enumerate(D):
+		# 	eig_right = numpy.matrix(Pr[:, eigval_ind])
+		# 	eig_left  = numpy.matrix(Pl[:, eigval_ind])
 
-		Pl = Pl.flatten() # Need to flatten so this Pl and the Pl above are both 1D arrays
+		# 	print(eigval, eig_left.T*eig_right)
 
-		# eigs() sometimes returns numerical fuzz in the form of entries that
-		# are very nearly zero but the wrong sign, so account for this:
+		# 	W_lam[eigval] = (eig_right.T*eig_left)/(eig_left*eig_right.T)
 
-		Pl = Pl/numpy.sum(Pl)
-		Pl[Pl < 0] = 0.
+		# This only works when W is diagonalizable:
 
-	# import ipdb; ipdb.set_trace()
+		# W_lam = {}
 
-	# Compute the projection operators W_{\lambda} associated
-	# with each eigenvalue.
+		# Id = numpy.eye(D.shape[0])
 
-	# This only works for eigenvalues that have algebraic multiplicity
-	# of 1:
+		# arg_eig_1 = numpy.isclose(D, 1.0).nonzero()[0][0]
 
-	# W_lam = {}
+		# for eigval_ind, eigval in enumerate(D):
+		# 	W_lam[eigval] = Id.copy()
 
-	# for eigval_ind, eigval in enumerate(D):
-	# 	eig_right = numpy.matrix(Pr[:, eigval_ind])
-	# 	eig_left  = numpy.matrix(Pl[:, eigval_ind])
+		# 	for eigval2 in D:
+		# 		if eigval == eigval2:
+		# 			pass
+		# 		else:
+		# 			# W_lam[eigval] = ((W - eigval2*Id)/(eigval - eigval2))*W_lam[eigval]
+		# 			W_lam[eigval] = W_lam[eigval]*((W - eigval2*Id)/(eigval - eigval2))
 
-	# 	print(eigval, eig_left.T*eig_right)
+		# |H(W^{\mathcal{X}})> is the transition uncertainty
+		# (i.e. specific entropy rate) associated with each 
+		# mixed state.
 
-	# 	W_lam[eigval] = (eig_right.T*eig_left)/(eig_left*eig_right.T)
+		# import ipdb; ipdb.set_trace()
+		with numpy.errstate(divide='ignore', invalid = 'ignore'):
+			HWA = -numpy.nansum(numpy.multiply(numpy.log2(W),W), 1).T
 
-	# This only works when W is diagonalizable:
+		# Compute the stationary distribution for the mixed states
+		# using the eigenvector of W that corresponds to an
+		# eigenvalue of 1.
 
-	# W_lam = {}
+		v_eig_1   = Pl.T
+		mixed_state_stationary_dist   = numpy.real(v_eig_1/numpy.sum(v_eig_1))
 
-	# Id = numpy.eye(D.shape[0])
+		# plt.figure()
+		# plt.plot(mixed_state_stationary_dist.T, '.')
 
-	# arg_eig_1 = numpy.isclose(D, 1.0).nonzero()[0][0]
+		# Compute the statistical complexity, which is 
+		# given by H[S]. Since causal states are the
+		# recurrent mixed states, we can use the
+		# stationary distribution of the mixed states
+		# to compute Cmu.
 
-	# for eigval_ind, eigval in enumerate(D):
-	# 	W_lam[eigval] = Id.copy()
+		# Alternatively, could use stationary_dist_mixed
+		# as computed at the outset.
 
-	# 	for eigval2 in D:
-	# 		if eigval == eigval2:
-	# 			pass
-	# 		else:
-	# 			# W_lam[eigval] = ((W - eigval2*Id)/(eigval - eigval2))*W_lam[eigval]
-	# 			W_lam[eigval] = W_lam[eigval]*((W - eigval2*Id)/(eigval - eigval2))
+		Cmu = 0.
 
-	# |H(W^{\mathcal{X}})> is the transition uncertainty
-	# (i.e. specific entropy rate) associated with each 
-	# mixed state.
+		if mixed_state_stationary_dist.shape[0] == 1:
+			# The statistical complexity of a 
+			# 1-state eM is 0.
+			pass
+		else:
+			for p in mixed_state_stationary_dist:
+				if not numpy.isclose(p, 0.0):
+					Cmu += -p*numpy.log2(p)
 
-	# import ipdb; ipdb.set_trace()
-	with numpy.errstate(divide='ignore', invalid = 'ignore'):
-		HWA = -numpy.nansum(numpy.multiply(numpy.log2(W),W), 1).T
+		# Compute the entropy rate of the epsilon-machine
+		# as per Equation 7 of CER.
 
-	# Compute the stationary distribution for the mixed states
-	# using the eigenvector of W that corresponds to an
-	# eigenvalue of 1.
+		hmu = float(mixed_state_stationary_dist*HWA.T)
 
-	v_eig_1   = Pl.T
-	mixed_state_stationary_dist   = numpy.real(v_eig_1/numpy.sum(v_eig_1))
+		delta_eta = numpy.matrix(numpy.zeros(etas_matrix.shape[0]))
+		delta_eta[0, 0] = 1.
 
-	# plt.figure()
-	# plt.plot(mixed_state_stationary_dist.T, '.')
+		# hmu2 = float(numpy.real(delta_eta*W_lam[D[arg_eig_1]]*HWA.T))
 
-	# Compute the statistical complexity, which is 
-	# given by H[S]. Since causal states are the
-	# recurrent mixed states, we can use the
-	# stationary distribution of the mixed states
-	# to compute Cmu.
+		# print('The entropy rates using the stationary distribution over the mixed states and W_{{1}} are:\n{}\n{}'.format(hmu, hmu2))
 
-	# Alternatively, could use stationary_dist_mixed
-	# as computed at the outset.
+		hLs = []
 
-	Cmu = 0.
+		Wprod = numpy.matrix(numpy.eye(etas_matrix.shape[0]))
 
-	if mixed_state_stationary_dist.shape[0] == 1:
-		# The statistical complexity of a 
-		# 1-state eM is 0.
-		pass
-	else:
-		for p in mixed_state_stationary_dist:
-			if not numpy.isclose(p, 0.0):
-				Cmu += -p*numpy.log2(p)
+		if L_max < 100:
+			L_use = 200
+		else:
+			L_use = 2*L_max
 
-	# Compute the entropy rate of the epsilon-machine
-	# as per Equation 7 of CER.
+		for L in range(L_use):
+			hLs.append(float(delta_eta*Wprod*HWA.T))
 
-	hmu = float(mixed_state_stationary_dist*HWA.T)
+			Wprod = Wprod*W
 
-	delta_eta = numpy.matrix(numpy.zeros(etas_matrix.shape[0]))
-	delta_eta[0, 0] = 1.
+		hLs = numpy.array(hLs)
 
-	# hmu2 = float(numpy.real(delta_eta*W_lam[D[arg_eig_1]]*HWA.T))
+		HLs = numpy.cumsum(hLs)
 
-	# print('The entropy rates using the stationary distribution over the mixed states and W_{{1}} are:\n{}\n{}'.format(hmu, hmu2))
+		ELs = 2*HLs[:L_use//2] - HLs[1::2]
 
-	hLs = []
+		cumsum_E = numpy.cumsum(hLs - hmu)
 
-	Wprod = numpy.matrix(numpy.eye(etas_matrix.shape[0]))
+		# if numpy.linalg.matrix_rank(Pr) == Pr.shape[0]:
+		# 	E = 0.
 
-	if L_max < 100:
-		L_use = 200
-	else:
-		L_use = 2*L_max
+		# 	for eigval in D:
+		# 		if numpy.abs(eigval) < 1:
+		# 			print eigval
+		# 			E += (delta_eta*W_lam[eigval]*HWA.T)/(1 - eigval)
 
-	for L in range(L_use):
-		hLs.append(float(delta_eta*Wprod*HWA.T))
+		# 	E = float(numpy.real(E))
+		# else:
+		# 	E = cumsum_E[-1]
 
-		Wprod = Wprod*W
-
-	hLs = numpy.array(hLs)
-
-	HLs = numpy.cumsum(hLs)
-
-	ELs = 2*HLs[:L_use//2] - HLs[1::2]
-
-	cumsum_E = numpy.cumsum(hLs - hmu)
-
-	# if numpy.linalg.matrix_rank(Pr) == Pr.shape[0]:
-	# 	E = 0.
-
-	# 	for eigval in D:
-	# 		if numpy.abs(eigval) < 1:
-	# 			print eigval
-	# 			E += (delta_eta*W_lam[eigval]*HWA.T)/(1 - eigval)
-
-	# 	E = float(numpy.real(E))
-	# else:
-	# 	E = cumsum_E[-1]
-
-	E = cumsum_E[-1]
+		E = cumsum_E[-1]
 
 	if to_plot:
 		import matplotlib.pyplot as plt
@@ -5237,25 +5250,7 @@ def computational_mechanics_bootstrap(stringY, ays, Yt_name_inf, L_max = None, B
 	if not os.path.isdir('transCSSR_results'):
 		os.mkdir('transCSSR_results')
 
-	if not os.path.isfile('transCSSR_results/+.dot'):
-		dot_file = """
-		digraph  {
-		size = "6,8.5";
-		ratio = "fill";
-		node
-		[shape = circle];
-		node [fontsize = 24];
-		node [penwidth = 5];
-		edge [fontsize = 24];
-		node [fontname = "CMU Serif Roman"];
-		graph [fontname = "CMU Serif Roman"];
-		edge [fontname = "CMU Serif Roman"];
-		A -> A [label = "0|0:1.0\\l"];
-		}
-		"""
-
-		with open('transCSSR_results/+.dot', 'w') as sname:
-			sname.write(dot_file)
+	make_null_input_dot()
 
 	if not os.path.isdir('transCSSR_results/bootstrap_tmp_files'):
 		os.mkdir('transCSSR_results/bootstrap_tmp_files')
@@ -5383,3 +5378,25 @@ def computational_mechanics_bootstrap(stringY, ays, Yt_name_inf, L_max = None, B
 	out = {'measures' : measures_inf, 'boot_measures' : theta_bs, 'C' : C_dict, 'cc' : cc_dict, 'P' : P_dict, 'Q' : quant_dict}
 
 	return out
+
+
+def make_null_input_dot():
+	if not os.path.isfile('transCSSR_results/+.dot'):
+		dot_file = """
+		digraph  {
+		size = "6,8.5";
+		ratio = "fill";
+		node
+		[shape = circle];
+		node [fontsize = 24];
+		node [penwidth = 5];
+		edge [fontsize = 24];
+		node [fontname = "CMU Serif Roman"];
+		graph [fontname = "CMU Serif Roman"];
+		edge [fontname = "CMU Serif Roman"];
+		A -> A [label = "0|0:1.0\\l"];
+		}
+		"""
+
+		with open('transCSSR_results/+.dot', 'w') as sname:
+			sname.write(dot_file)
