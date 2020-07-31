@@ -9,9 +9,9 @@ from collections import Counter, defaultdict
 from filter_data_methods import *
 from igraph import *
 
-from transCSSR_bc import *
+from transCSSR__SHALIZI import *
 
-import time
+
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #
@@ -20,7 +20,6 @@ import time
 #
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-# data_prefix = 'NEURO-Set5/'
 data_prefix = ''
 
 # Yt_name = 'coinflip_through_even'
@@ -33,7 +32,7 @@ data_prefix = ''
 # Yt_name = 'rip-rev'
 # Yt_name = 'barnettY'
 # Yt_name = 'even-excite_w_refrac'
-# Yt_name = 'coinflip-excite_w_refrac'
+Yt_name = 'coinflip-excite_w_refrac'
 # Yt_name = 'coinflip'
 # Yt_name = 'period4'
 # Yt_name = 'golden-mean'
@@ -42,40 +41,12 @@ data_prefix = ''
 # Yt_name = 'tricoin_through_singh-machine'
 # Yt_name = 'coinflip_through_floatreset'
 
-# Yt_name = 'sample1'
-# Yt_name = 'sample0'
-
-# Xt_name = 'coinflip'
+Xt_name = 'coinflip'
 # Xt_name = 'even'
 # Xt_name = ''
 # Xt_name = 'barnettX'
 # Xt_name = 'even-excite_w_refrac'
 # Xt_name = 'tricoin'
-
-# Xt_name = 'sample0'
-# Xt_name = 'sample1'
-
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-#
-# Examples from:
-# 		Computational Mechanics of Input-Output Processes- Structured transformations and the epsilon-transducer - Barnett, Crutchfield
-#
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-# The z-channel.
-
-# Xt_name = 'Xt_z-channel'
-# Yt_name = 'Yt_z-channel'
-
-# The delay-channel.
-
-# Xt_name = 'Xt_delay-channel'
-# Yt_name = 'Yt_delay-channel'
-
-# The odd random channel.
-
-Xt_name = 'Xt_odd-random-channel'
-Yt_name = 'Yt_odd-random-channel'
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #
@@ -102,24 +73,22 @@ else:
 #
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-axs = ['0', '1']
-ays = ['0', '1']
-
 # axs = ['0']
 # ays = ['0', '1']
+
+axs = ['0', '1']
+ays = ['0', '1']
 
 e_symbols = list(itertools.product(axs, ays)) # All of the possible pairs of emission
                                               # symbols for (x, y)
 
 alpha = 0.001
 
-counting_method = 1
-
 verbose = False
 
 # L is the maximum amount we want to ever look back.
 
-L_max = 3
+L_max = 1
 
 Tx = len(stringX); Ty = len(stringY)
 
@@ -127,21 +96,28 @@ assert Tx == Ty, 'The two time series must have the same length.'
 
 T = Tx
 
-startTime = time.time()
-word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_max, counting_method = counting_method, axs = axs, ays = ays)
-print(('The transCSSR counting took {0} seconds...'.format(time.time() - startTime)))
+word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_max)
 
-epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, verbose = False)
+epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha)
 
 print('The epsilon-transducer has {} states.'.format(len(invepsilon)))
 
-print_morph_by_states(morph_by_state, axs, ays, e_symbols)
+print_morph_by_states(morph_by_state)
 
-filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max)
+prior_pred = [word_lookup_fut[('', ay)] for ay in ays]
 
-# print 'Xt Yt \hat\{Y\}t St P(Yt = 1 | Xt, St)'
+prior_pred = numpy.array(prior_pred)/float(numpy.sum(prior_pred))
 
-# for t_ind in range(int(numpy.min([100, len(stringX)]))):
-# 	print stringX[t_ind], stringY[t_ind], stringY_pred[t_ind], filtered_states[t_ind], filtered_probs[t_ind]
+print('\nDemonstration of filtering...\n')
+
+filtered_states, filtered_probs, stringY_pred = filter_and_predict(stringX, stringY, epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L_max, prior_pred)
+
+print('t\tS_\{t\}\tP(Y_\{t\} | S_\{t-1\})\that(Y)_\{t\}\tY_\{t\}')
+print('-----------------------------------------------------------')
+
+for t_ind in range(int(numpy.min([100, len(stringX)]))):
+	print(t_ind, filtered_states[t_ind], filtered_probs[t_ind, :], stringY_pred[t_ind], stringY[t_ind])
+
+test_out = run_tests_transCSSR('data/{}{}'.format(data_prefix, Xt_name), 'data/{}{}'.format(data_prefix, Yt_name), epsilon, invepsilon, morph_by_state, axs, ays, e_symbols, L = L_max, L_max = L_max, metric = None, memoryless = False, verbose = True, prior_pred = prior_pred)
 
 preds_all, possible_states_all = filter_and_pred_probs(stringX, stringY, machine_fname = 'transCSSR_results/+{}.dot'.format(Xt_name), transducer_fname = 'transCSSR_results/{}+{}.dot'.format(Xt_name, Yt_name), axs = axs, ays = ays, inf_alg = 'transCSSR')

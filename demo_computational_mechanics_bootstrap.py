@@ -1,4 +1,4 @@
-from transCSSR_bc import *
+from transCSSR import *
 
 # Simulate a new time series:
 

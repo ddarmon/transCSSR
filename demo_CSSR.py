@@ -9,7 +9,7 @@ from collections import Counter, defaultdict
 from filter_data_methods import *
 from igraph import *
 
-from transCSSR_bc import *
+from transCSSR import *
 
 # Yt is the output. Xt should be set to the null string.
 

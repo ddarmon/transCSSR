@@ -1,3 +1,12 @@
+# Note: This code uses the epsilon-transducer formalism as
+# presented in Chapter 7 of Cosma Shalizi's thesis:
+# 	http://bactra.org/thesis/
+# which **does not** condition on the current symbol.
+# 
+# transCSSR uses the Crutchfield/Barnett formalism from
+# 	https://link.springer.com/article/10.1007/s10955-015-1327-5
+# which **does** condition on the input-output process.
+
 from collections import Counter, defaultdict
 import numpy
 import scipy.stats
