@@ -4,6 +4,7 @@ import os
 import itertools
 import string
 import copy
+import glob
 
 # Dependencies: numpy, scipy, pandas, igraph, matplotlib
 
@@ -11,6 +12,16 @@ import numpy
 import scipy.stats
 import pandas
 from igraph import *
+
+import matplotlib.pyplot as plt
+
+# New Dependencies: joblib, tqdm
+
+from joblib import Parallel, delayed
+
+from tqdm import tqdm # for progress bar
+
+# Import from transCSSR package
 
 from filter_data_methods import *
 
@@ -5209,8 +5220,133 @@ def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, 
 
 	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_opt)
 
-	epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_opt, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True, stringX = stringX, stringY = stringY)
+	epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_opt, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True, stringX = stringX, stringY = stringY, fname = fname)
 
 	output = {'epsilon' : epsilon, 'invepsilon' : invepsilon, 'morph_by_state' : morph_by_state, 'L_opt' : L_opt, 'bic_by_L' : bic_by_L, 'num_states_by_L' : num_states_by_L}
 
 	return output
+
+def computational_mechanics_bootstrap(stringY, ays, Yt_name_inf, L_max = None, B = 2000, alpha = 0.001, show_plots = True, remove_bootstrap_files = True):
+	N = len(stringY)
+
+	if L_max is None:
+		L_max_words = int(numpy.log2(N))-1
+	else:
+		L_max_words = L_max
+
+	L_max_CSSR  = L_max_words
+
+
+	axs = ['0']
+
+	e_symbols = list(itertools.product(axs, ays)) # All of the possible pairs of emission
+												  # symbols for (x, y)
+
+	stringX = '0'*len(stringY)
+
+	Xt_name = ''
+
+	machine_name = '+{}'.format(Yt_name_inf)
+
+	transducer_fname_inf = 'transCSSR_results/{}.dot'.format(machine_name)
+
+	cssr_output = choose_L_eM(stringX, stringY, L_max_CSSR, axs, ays, e_symbols, Xt_name, Yt_name_inf, alpha = alpha, all_digits = True, fname = machine_name)
+
+	L_opt = cssr_output['L_opt']
+
+	HLs_inf, hLs_inf, hmu_inf, ELs_inf, E_inf, Cmu_inf, etas_matrix_inf = compute_ict_measures(transducer_fname_inf, ays, L_max = 10, inf_alg = 'transCSSR', to_plot = False)
+
+	measures_inf = {'Cmu' : Cmu_inf, 'hmu' : hmu_inf, 'E' : E_inf}
+
+	print("Bootstrapping time series...")
+
+	def single_boot(b, Yt_name_inf):
+		Yt_name_boot = 'boot{}'.format(b)
+
+		machine_name = 'bootstrap_tmp_files/+{}'.format(Yt_name_boot)
+
+		stringY = simulate_eM_fast(N, 'transCSSR_results/+{}.dot'.format(Yt_name_inf), ays, 'transCSSR')
+
+		transducer_fname_boot = 'transCSSR_results/{}.dot'.format(machine_name)
+
+		word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_opt)
+		epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_opt, axs, ays, e_symbols, Xt_name, Yt_name_boot, alpha = alpha, all_digits = True, stringX = stringX, stringY = stringY, fname = machine_name)
+
+		try:
+			HLs, hLs, hmu, ELs, E, Cmu, etas_matrix = compute_ict_measures(transducer_fname_boot, ays, inf_alg = 'transCSSR', L_max = 10, to_plot = False)
+		except:
+			Cmu = numpy.nan
+			hmu = numpy.nan
+			E   = numpy.nan
+
+		return [Cmu, hmu, E]
+
+	tmp = Parallel(n_jobs=-1)(delayed(single_boot)(b = b, Yt_name_inf = Yt_name_inf) for b in tqdm(range(B)))
+
+	theta_bs = pandas.DataFrame(tmp, columns = ['Cmu', 'hmu', 'E'])
+
+	def ecdf(x, already_sorted = False):
+		if not already_sorted:
+			x = numpy.sort(x)
+		n = len(x)
+		def _ecdf(v):
+			# side='right' because we want Pr(x <= v)
+			return (numpy.searchsorted(x, v, side='right')) / n
+		return _ecdf
+
+	def quant_func(x):
+		def _quant(p):
+			return(numpy.quantile(x, p))
+
+		return _quant
+
+	C_dict = {}
+	cc_dict = {}
+	P_dict = {}
+	quant_dict = {}
+
+	for measure_name in theta_bs.keys():
+		theta = theta_bs[measure_name]
+
+		theta = numpy.sort(theta)
+
+		C = ecdf(theta, already_sorted = True)
+
+		cc = lambda x : numpy.abs(2*C(x) - 1)
+
+		P = lambda x : 1-cc(x)
+
+		quant = quant_func(theta)
+
+		C_dict[measure_name] = C
+		cc_dict[measure_name] = cc
+		P_dict[measure_name] = P
+		quant_dict[measure_name] = quant
+
+		theta_ls = numpy.linspace(theta[0], theta[-1], 2001)
+
+		conf_level = 0.95
+		a = 1 - conf_level
+
+		tail_probs = [a/2, 1-a/2]
+		ci = quant(tail_probs)
+
+		if show_plots:
+			plt.figure()
+			plt.plot(theta_ls, cc(theta_ls))
+			plt.plot(ci, cc(ci), c = 'r')
+			plt.xlabel(measure_name)
+			plt.ylabel('Confidence Curve')
+
+	if remove_bootstrap_files:
+		boot_files = glob.glob('transCSSR_results/bootstrap_tmp_files/+boot*')
+
+		for f in boot_files:
+			os.remove(f)
+
+	if show_plots:
+		plt.show()
+
+	out = {'measures' : measures_inf, 'C' : C_dict, 'cc' : cc_dict, 'P' : P_dict, 'Q' : quant_dict}
+
+	return out
