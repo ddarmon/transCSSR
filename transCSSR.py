@@ -5379,6 +5379,45 @@ def computational_mechanics_bootstrap(stringY, ays, Yt_name_inf, L_max = None, B
 
 	return out
 
+def automated_CSSR(stringY, ays, Yt_name_inf, L_max = None, alpha = 0.001):
+
+	if not os.path.isdir('transCSSR_results'):
+		os.mkdir('transCSSR_results')
+
+	make_null_input_dot()
+
+	if not os.path.isdir('transCSSR_results/bootstrap_tmp_files'):
+		os.mkdir('transCSSR_results/bootstrap_tmp_files')
+
+	N = len(stringY)
+
+	if L_max is None:
+		L_max_words = int(numpy.log2(N))-1
+	else:
+		L_max_words = L_max
+
+	L_max_CSSR  = L_max_words
+
+
+	axs = ['0']
+
+	e_symbols = list(itertools.product(axs, ays)) # All of the possible pairs of emission
+												  # symbols for (x, y)
+
+	stringX = '0'*len(stringY)
+
+	Xt_name = ''
+
+	machine_name = '+{}'.format(Yt_name_inf)
+
+	transducer_fname_inf = 'transCSSR_results/{}.dot'.format(machine_name)
+
+	cssr_output = choose_L_eM(stringX, stringY, L_max_CSSR, axs, ays, e_symbols, Xt_name, Yt_name_inf, alpha = alpha, all_digits = True, fname = machine_name)
+
+	L_opt = cssr_output['L_opt']
+
+	return None
+
 
 def make_null_input_dot():
 	if not os.path.isfile('transCSSR_results/+.dot'):
