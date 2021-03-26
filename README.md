@@ -15,7 +15,7 @@ pip install git+https://github.com/ddarmon/transCSSR
 Visualization of the epsilon-machines requires [Graphviz](http://graphviz.org) or similar software for reading [dot](http://en.wikipedia.org/wiki/DOT_(graph_description_language)) files. To use Graphviz within a Juptyer notebook using the Anaconda distribution of Python, install the `python-graphviz` package using:
 
 ```
-conda install python-graphviz
+pip install graphviz
 ```
 
 
