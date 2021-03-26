@@ -5147,10 +5147,12 @@ def generate_word_probs_eM(Yt_name, ays, wordlength = 5, inf_alg = 'transCSSR'):
 
 # 	return(output)
 
-def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, verbose = False, all_digits = False):
+def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, alpha = 0.001, test_type = 'chi2', fname = None, is_multiline = False, verbose = False, all_digits = False):
+	make_null_input_dot()
+
 	machine_fname = 'transCSSR_results/+{}.dot'.format(Xt_name)
 
-	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_max)
+	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_max, is_multiline=is_multiline)
 
 	ays_lookup = {}
 
@@ -5185,21 +5187,43 @@ def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, 
 
 		dots_by_L.append(draw_dot_singlearrows('transCSSR_results/{}+{}'.format(Xt_name, Yt_name_L_topo), epsilon, invepsilon, morph_by_state_topo, axs, ays, L_max=L, all_digits=False, save_dot = False))
 
-		pred_probs_by_time, cur_states_by_time = filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs, ays, 'transCSSR')
+		if not is_multiline:
+			N = len(stringY) # Overall timeseries length
 
-		# os.system('open {}'.format(transducer_fname))
-		# os.system('open {}'.format(transducer_fname_topo))
+			pred_probs_by_time, cur_states_by_time = filter_and_pred_probs(stringX, stringY, machine_fname, transducer_fname, axs, ays, 'transCSSR')
 
-		realized_probs_by_time = numpy.zeros(len(stringY))
+			# os.system('open {}'.format(transducer_fname))
+			# os.system('open {}'.format(transducer_fname_topo))
 
-		for t, y in enumerate(stringY):
-			realized_probs_by_time[t] = pred_probs_by_time[t, ays_lookup[y]]
+			realized_probs_by_time = numpy.zeros(len(stringY))
 
-		log_like = numpy.sum(numpy.log(realized_probs_by_time))
+			for t, y in enumerate(stringY):
+				realized_probs_by_time[t] = pred_probs_by_time[t, ays_lookup[y]]
+
+			log_like = numpy.sum(numpy.log(realized_probs_by_time))
+		else:
+			N = 0 # Accumulator for overall timeseries length across trials.
+
+			log_like = 0 # Accumulator for log-likelihood across trials.
+
+			for cur_trial in range(len(stringY)):
+				sX, sY = stringX[cur_trial], stringY[cur_trial]
+
+				N += len(sY)
+
+				realized_probs_by_time = numpy.zeros(len(sY))
+
+				pred_probs_by_time, cur_states_by_time = filter_and_pred_probs(sX, sY, machine_fname, transducer_fname, axs, ays, 'transCSSR')
+
+				for t, y in enumerate(sY):
+					realized_probs_by_time[t] = pred_probs_by_time[t, ays_lookup[y]]
+
+				log_like += numpy.sum(numpy.log(realized_probs_by_time))
+
 
 		num_states = len(invepsilon)
 
-		bic_by_L.append(-2*log_like + num_states*(len(ays)-1)*numpy.log(len(stringY)))
+		bic_by_L.append(-2*log_like + num_states*(len(ays)-1)*numpy.log(N))
 
 		num_states_by_L.append(len(invepsilon))
 
@@ -5237,7 +5261,7 @@ def choose_L_eM(stringX, stringY, L_max, axs, ays, e_symbols, Xt_name, Yt_name, 
 
 	# print(L_opt, num_states_opt)
 
-	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_opt)
+	word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(stringX, stringY, L_opt, is_multiline=is_multiline)
 
 	epsilon, invepsilon, morph_by_state = run_transCSSR(word_lookup_marg, word_lookup_fut, L_opt, axs, ays, e_symbols, Xt_name, Yt_name, alpha = alpha, all_digits = True, stringX = stringX, stringY = stringY, fname = fname)
 
@@ -5379,63 +5403,22 @@ def computational_mechanics_bootstrap(stringY, ays, Yt_name_inf, L_max = None, B
 
 	return out
 
-def automated_CSSR(stringY, ays, Yt_name_inf, L_max = None, alpha = 0.001):
-
-	if not os.path.isdir('transCSSR_results'):
-		os.mkdir('transCSSR_results')
-
-	make_null_input_dot()
-
-	if not os.path.isdir('transCSSR_results/bootstrap_tmp_files'):
-		os.mkdir('transCSSR_results/bootstrap_tmp_files')
-
-	N = len(stringY)
-
-	if L_max is None:
-		L_max_words = int(numpy.log2(N))-1
-	else:
-		L_max_words = L_max
-
-	L_max_CSSR  = L_max_words
-
-
-	axs = ['0']
-
-	e_symbols = list(itertools.product(axs, ays)) # All of the possible pairs of emission
-												  # symbols for (x, y)
-
-	stringX = '0'*len(stringY)
-
-	Xt_name = ''
-
-	machine_name = '+{}'.format(Yt_name_inf)
-
-	transducer_fname_inf = 'transCSSR_results/{}.dot'.format(machine_name)
-
-	cssr_output = choose_L_eM(stringX, stringY, L_max_CSSR, axs, ays, e_symbols, Xt_name, Yt_name_inf, alpha = alpha, all_digits = True, fname = machine_name)
-
-	L_opt = cssr_output['L_opt']
-
-	return None
-
 
 def make_null_input_dot():
 	if not os.path.isfile('transCSSR_results/+.dot'):
-		dot_file = """
-		digraph  {
-		size = "6,8.5";
-		ratio = "fill";
-		node
-		[shape = circle];
-		node [fontsize = 24];
-		node [penwidth = 5];
-		edge [fontsize = 24];
-		node [fontname = "CMU Serif Roman"];
-		graph [fontname = "CMU Serif Roman"];
-		edge [fontname = "CMU Serif Roman"];
-		A -> A [label = "0|0:1.0\\l"];
-		}
-		"""
+		dot_file = """digraph  {
+size = "6,8.5";
+ratio = "fill";
+node
+[shape = circle];
+node [fontsize = 24];
+node [penwidth = 5];
+edge [fontsize = 24];
+node [fontname = "CMU Serif Roman"];
+graph [fontname = "CMU Serif Roman"];
+edge [fontname = "CMU Serif Roman"];
+A -> A [label = "0|0:1.0\\l"];
+}"""
 
 		with open('transCSSR_results/+.dot', 'w') as sname:
 			sname.write(dot_file)
