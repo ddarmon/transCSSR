@@ -1457,7 +1457,7 @@ def run_transCSSR(word_lookup_marg, word_lookup_fut, L_max, axs, ays, e_symbols,
 									if num_states == 1:
 										pass
 									else:
-										cur_best_pvalue = -numpy.Inf
+										cur_best_pvalue = -numpy.inf
 										cur_best_state = -1
 									
 										altstates = copy.deepcopy(list(invepsilon.keys()))
