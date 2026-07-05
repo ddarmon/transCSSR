@@ -35,6 +35,9 @@ from transCSSR import (
     run_transCSSR,
 )
 
+# Shared live-parity helpers live in conftest.py (imported by both suites).
+from conftest import LIVE_CASES, _delay_process, _random_binary
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 GOLDEN_DIR = REPO_ROOT / "tests" / "golden"
 
@@ -142,28 +145,6 @@ def test_golden_filter_parity(name):
 # ---------------------------------------------------------------------------
 # 2. Live filter parity vs the legacy engine
 # ---------------------------------------------------------------------------
-
-
-def _random_binary(seed: int, n: int) -> str:
-    rng = np.random.default_rng(seed)
-    return "".join(rng.choice(list("01"), size=n))
-
-
-def _delay_process(seed: int, n: int):
-    rng = np.random.default_rng(seed)
-    xb = rng.integers(0, 2, size=n)
-    yb = np.empty(n, dtype=int)
-    yb[0] = 0
-    yb[1:] = xb[:-1]
-    return "".join(map(str, xb)), "".join(map(str, yb))
-
-
-LIVE_CASES = [
-    (101, 2, "indep"),
-    (202, 3, "indep"),
-    (303, 2, "delay"),
-    (404, 3, "delay"),
-]
 
 
 @pytest.mark.parametrize("seed,L_max,kind", LIVE_CASES)

@@ -176,14 +176,18 @@ character a token), a `list`/`tuple` of tokens, or a 1-d
 `numpy.ndarray`. An *ensemble* of realizations (the legacy
 `is_multiline=True`) is a `list` whose elements are themselves sequences;
 a `list` of scalar tokens (e.g. `list[int]`) is a single realization.
-Ensembles are detected by type, not by a flag.
+Ensembles are detected by type, not by a flag. Two traps follow: a single
+sequence of tuple tokens `[(0,0), (0,1), ...]` or of multi-character word
+tokens `['the', 'cat', ...]` auto-detects as an ensemble. Pass
+`ensemble=False` to force single-sequence handling (`ensemble=True` forces
+ensemble handling; `None`, the default, auto-detects).
 
 **Inference.** `infer_transducer(xs, ys, L_max, alpha=0.001,
 test="chi2", input_alphabet=None, output_alphabet=None,
-stats_mode="correct")` learns `P(Y_t | X_t, X_past, Y_past)`.
-`infer_machine(ys, L_max, ...)` is the output-only case. Alphabets may be
-passed explicitly (an `Alphabet` or a token list) or inferred from data
-(`None`).
+stats_mode="correct", ensemble=None)` learns `P(Y_t | X_t, X_past, Y_past)`.
+`infer_machine(ys, L_max, ..., ensemble=None)` is the output-only case.
+Alphabets may be passed explicitly (an `Alphabet` or a token list) or
+inferred from data (`None`).
 
 **Filtering / prediction.** `model.filter(xs, ys)` (or `machine.filter(ys)`
 for an epsilon-machine) returns a `FilterResult` with `.states` (one

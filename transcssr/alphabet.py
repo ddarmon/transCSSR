@@ -15,6 +15,31 @@ import numpy as np
 __all__ = ["Alphabet"]
 
 
+def _is_sequence(obj: Any) -> bool:
+    """Return ``True`` if ``obj`` is an accepted sequence container.
+
+    Accepted containers are ``str``, ``list``, ``tuple``, and
+    :class:`numpy.ndarray`. This is the single package-wide definition; other
+    modules import it from here (``docs/DESIGN.md`` "Sequence input contract").
+    """
+    return isinstance(obj, (str, list, tuple, np.ndarray))
+
+
+def _looks_like_ensemble(seq: Any) -> bool:
+    """Return ``True`` if ``seq`` is an *ensemble* (list/tuple of sequences).
+
+    The single package-wide rule (``docs/DESIGN.md`` "Sequence input
+    contract"): a ``list``/``tuple`` whose elements are *all* themselves
+    sequences (str/list/tuple/ndarray) is an ensemble of realizations; a
+    ``list``/``tuple`` of scalar tokens is a single realization.
+    """
+    return (
+        isinstance(seq, (list, tuple))
+        and len(seq) > 0
+        and all(_is_sequence(el) for el in seq)
+    )
+
+
 def _normalize_token(token: Any) -> Hashable:
     """Coerce numpy scalar tokens to their native Python equivalents.
 
@@ -36,11 +61,6 @@ def _normalize_token(token: Any) -> Hashable:
     if isinstance(token, np.generic):
         return token.item()
     return token
-
-
-def _is_sequence(obj: Any) -> bool:
-    """Return ``True`` if ``obj`` is an accepted sequence container."""
-    return isinstance(obj, (str, list, tuple, np.ndarray))
 
 
 def _iter_tokens(seq: Any) -> Iterable[Hashable]:
@@ -235,9 +255,7 @@ def _iter_all_tokens(seqs: Any) -> Iterable[Hashable]:
     sequences (``str``/``list``/``tuple``/``ndarray``). A ``list``/``tuple``
     whose elements are all scalar tokens is a single sequence.
     """
-    if isinstance(seqs, (list, tuple)) and len(seqs) > 0 and all(
-        _is_sequence(el) for el in seqs
-    ):
+    if _looks_like_ensemble(seqs):
         for seq in seqs:
             yield from _iter_tokens(seq)
     else:

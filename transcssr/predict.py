@@ -44,6 +44,8 @@ from typing import TYPE_CHECKING, Any, Hashable, Optional
 
 import numpy as np
 
+from .alphabet import _looks_like_ensemble
+
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from .machine import EpsilonTransducer
 
@@ -84,25 +86,6 @@ class FilterResult:
     prediction_probs: np.ndarray
 
 
-def _is_sequence(obj: Any) -> bool:
-    """Return ``True`` for accepted sequence containers (str/list/tuple/ndarray)."""
-    return isinstance(obj, (str, list, tuple, np.ndarray))
-
-
-def _looks_like_ensemble(seq: Any) -> bool:
-    """Return ``True`` if ``seq`` is an *ensemble* (list/tuple of sequences).
-
-    Mirrors the package-wide rule (``docs/DESIGN.md`` "Sequence input
-    contract"): a ``list``/``tuple`` whose elements are *all* themselves
-    sequences is an ensemble; a list of scalar tokens is a single sequence.
-    """
-    return (
-        isinstance(seq, (list, tuple))
-        and len(seq) > 0
-        and all(_is_sequence(el) for el in seq)
-    )
-
-
 def _transitions_memoryless(model: "EpsilonTransducer") -> dict[tuple[int, int], int]:
     """Build an output-memoryless transition map ``(state, x_idx) -> next``.
 
@@ -115,18 +98,14 @@ def _transitions_memoryless(model: "EpsilonTransducer") -> dict[tuple[int, int],
     model. It is provided for signature/behavior completeness; the shipped
     fixtures and tests use ``memoryless=False``.
     """
+    from .machine import _iter_transition_sources
+
     inv = model.histories_by_state
     trans: dict[tuple[int, int], int] = {}
     for state in range(model.n_states):
-        hists = inv.get(state, [])
-        need_lmax = not any(len(xh) == model.L_max - 1 for xh, _ in hists)
-        for xh, yh in hists:
-            if len(xh) == model.L_max:
-                if not need_lmax:
-                    continue
-                base_x, base_y = xh[1:], yh[1:]
-            else:
-                base_x, base_y = xh, yh
+        for base_x, base_y in _iter_transition_sources(
+            inv.get(state, []), model.L_max
+        ):
             for x_idx in range(model.n_x):
                 key = (base_x + (x_idx,), base_y + (_MEM_Y,))
                 nxt = model.epsilon.get(key, -1)
@@ -156,7 +135,11 @@ def filter_and_predict(
     xs, ys : sequence
         A **single** input / output realization each (``str``, ``list``/
         ``tuple`` of tokens, or 1-d :class:`numpy.ndarray`). Filtering is
-        defined for a single sequence only, matching the legacy engine.
+        defined for a single sequence only, matching the legacy engine: an
+        ensemble (a list whose elements are themselves sequences) is rejected
+        with :class:`ValueError`. Consequently a single sequence of tuple
+        tokens or multi-character (word) string tokens -- which is
+        indistinguishable from an ensemble by type -- cannot be filtered.
     memoryless : bool, optional
         If ``True``, use output-memoryless synchronization/transitions (legacy
         ``memoryless=True``). See :func:`_transitions_memoryless`; not exercised

@@ -3,6 +3,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
+import numpy as np
 import pytest
 
 from transCSSR import (
@@ -10,6 +11,36 @@ from transCSSR import (
     filter_and_predict,
     run_transCSSR,
 )
+
+
+# ---------------------------------------------------------------------------
+# Shared live-parity helpers (imported by test_cssr.py and test_predict.py)
+# ---------------------------------------------------------------------------
+
+
+def _random_binary(seed: int, n: int) -> str:
+    """A length-``n`` random binary string from a seeded generator."""
+    rng = np.random.default_rng(seed)
+    return "".join(rng.choice(list("01"), size=n))
+
+
+def _delay_process(seed: int, n: int):
+    """A delay channel ``Y_t = X_{t-1}`` (one bit of memory -> 2 states)."""
+    rng = np.random.default_rng(seed)
+    xb = rng.integers(0, 2, size=n)
+    yb = np.empty(n, dtype=int)
+    yb[0] = 0
+    yb[1:] = xb[:-1]
+    return "".join(map(str, xb)), "".join(map(str, yb))
+
+
+# (seed, L_max, kind) -- two independent-random cases and two delay cases.
+LIVE_CASES = [
+    (101, 2, "indep"),
+    (202, 3, "indep"),
+    (303, 2, "delay"),
+    (404, 3, "delay"),
+]
 
 
 @dataclass(frozen=True)

@@ -43,6 +43,7 @@ from transcssr import (
     Alphabet,
     EpsilonMachine,
     EpsilonTransducer,
+    FilterResult,       # return type of model.filter(...)
     infer_machine,      # epsilon-machine from an output-only process
     infer_transducer,   # epsilon-transducer from an input/output process
 )
@@ -54,10 +55,13 @@ model = infer_transducer(
     test="chi2",             # or "G"
     input_alphabet=None,     # Alphabet | list of tokens | None (infer from data)
     output_alphabet=None,
+    ensemble=None,           # None = auto-detect single-vs-ensemble by type;
+                             # True = force ensemble; False = force single sequence
+                             # (escape hatch for tuple-token / word-token inputs)
 )
 
 machine = infer_machine(ys, L_max=3, alpha=0.001, test="chi2",
-                        alphabet=None)
+                        alphabet=None, ensemble=None)
 
 result = model.filter(xs, ys)        # FilterResult
 result.states                        # list[int], one state per time step (-1 = unsynchronized)
@@ -80,6 +84,17 @@ sequences (str/list/tuple/ndarray) is an ensemble. To avoid ambiguity for
 elements are all *scalar tokens* (not str/list/tuple/ndarray) is a single
 sequence. A `list[str]` is an ensemble of character sequences (matches
 legacy multiline usage). Document this rule in docstrings.
+
+Two traps follow directly from this type-based rule: (1) a single sequence of
+**tuple tokens** `[(0,0), (0,1), ...]` auto-detects as an ensemble of length-2
+sequences; (2) a single sequence of multi-character **word (string) tokens**
+`['the', 'cat', ...]` auto-detects as a character ensemble. The
+`ensemble: bool | None` parameter on `infer_transducer`/`infer_machine` is the
+escape hatch: `None` (default) keeps the auto-detection above; `True` forces
+ensemble handling; `False` forces single-sequence handling, so the elements are
+treated as tokens even when they look like sequences. (The filtering path,
+`model.filter` / `filter_and_predict`, accepts a single realization only and
+rejects anything that looks like an ensemble; it does not take `ensemble=`.)
 
 ## Core representations
 

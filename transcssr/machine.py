@@ -18,11 +18,14 @@ import json
 import string
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Hashable
+from typing import TYPE_CHECKING, Any, Hashable
 
 import numpy as np
 
 from .alphabet import Alphabet
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from .predict import FilterResult
 
 __all__ = ["EpsilonTransducer", "EpsilonMachine", "History"]
 
@@ -30,6 +33,44 @@ __all__ = ["EpsilonTransducer", "EpsilonMachine", "History"]
 History = tuple[tuple[int, ...], tuple[int, ...]]
 
 _MODEL_FORMAT = "transcssr-model-v1"
+
+
+def _iter_transition_sources(hists, L_max: int):
+    """Yield the ``(x_hist, y_hist)`` transition-source pairs for a state.
+
+    Implements the SPEC §4.4 ``need_Lmax`` source-history rule shared by the
+    transition map (:meth:`EpsilonTransducer.transitions`), the memoryless
+    transition map (:func:`transcssr.predict._transitions_memoryless`), and the
+    state-graph construction (:func:`transcssr.cssr._connected_component`):
+    transitions are read preferentially off the length-``(L_max - 1)`` histories
+    (grow); a state that has *no* length-``(L_max - 1)`` history falls back to
+    its length-``L_max`` histories (left-shift + append). Length-``L_max``
+    histories are skipped when the state has any length-``(L_max - 1)`` history.
+
+    Parameters
+    ----------
+    hists : iterable of History
+        The histories of a single state (each an ``(x_hist, y_hist)`` pair of
+        equal-length index tuples).
+    L_max : int
+        Maximum history length used during inference.
+
+    Yields
+    ------
+    tuple
+        The base ``(x_hist, y_hist)`` onto which each emission symbol is
+        appended to read a transition, in the input iteration order of
+        ``hists``.
+    """
+    hists = list(hists)
+    need_lmax = not any(len(xh) == L_max - 1 for xh, _ in hists)
+    for xh, yh in hists:
+        if len(xh) == L_max:
+            if not need_lmax:
+                continue
+            yield xh[1:], yh[1:]
+        else:
+            yield xh, yh
 
 
 def _state_label(value: int) -> str:
@@ -71,6 +112,11 @@ class EpsilonTransducer:
     epsilon: dict[History, int]
     morph_counts: np.ndarray
     L_max: int
+
+    #: Serialization tag distinguishing transducers from output-only machines.
+    #: Written to ``to_dict`` output as ``"kind"``; a MISSING ``kind`` on read
+    #: is treated as ``"transducer"`` for backward compatibility.
+    _KIND: str = field(default="transducer", init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         self.morph_counts = np.asarray(self.morph_counts)
@@ -138,15 +184,9 @@ class EpsilonTransducer:
         inv = self.histories_by_state
         trans: dict[tuple[int, int, int], int] = {}
         for state in range(self.n_states):
-            hists = inv.get(state, [])
-            need_lmax = not any(len(xh) == self.L_max - 1 for xh, _ in hists)
-            for xh, yh in hists:
-                if len(xh) == self.L_max:
-                    if not need_lmax:
-                        continue
-                    base_x, base_y = xh[1:], yh[1:]
-                else:
-                    base_x, base_y = xh, yh
+            for base_x, base_y in _iter_transition_sources(
+                inv.get(state, []), self.L_max
+            ):
                 for x_idx in range(self.n_x):
                     for y_idx in range(self.n_y):
                         key = (base_x + (x_idx,), base_y + (y_idx,))
@@ -220,6 +260,7 @@ class EpsilonTransducer:
         ]
         return {
             "format": _MODEL_FORMAT,
+            "kind": type(self)._KIND,
             "input_alphabet": in_tokens,
             "output_alphabet": out_tokens,
             "n_states": int(self.n_states),
@@ -235,12 +276,19 @@ class EpsilonTransducer:
 
     @classmethod
     def from_dict(cls, data: dict) -> "EpsilonTransducer":
-        """Reconstruct a model from a ``transcssr-model-v1`` dict."""
+        """Reconstruct a model from a ``transcssr-model-v1`` dict.
+
+        Dispatches on the ``"kind"`` field (``"transducer"`` or ``"machine"``)
+        rather than on the calling class, so ``EpsilonTransducer.from_dict`` on a
+        machine file returns an :class:`EpsilonMachine` and vice versa. A missing
+        ``"kind"`` is treated as ``"transducer"`` for backward compatibility.
+        """
         fmt = data.get("format")
         if fmt != _MODEL_FORMAT:
             raise ValueError(
                 f"Unsupported model format {fmt!r}; expected {_MODEL_FORMAT!r}."
             )
+        kind = data.get("kind", "transducer")
         input_alphabet = Alphabet(data["input_alphabet"])
         output_alphabet = Alphabet(data["output_alphabet"])
         epsilon: dict[History, int] = {
@@ -248,13 +296,29 @@ class EpsilonTransducer:
             for xh, yh, state in data["epsilon"]
         }
         morph_counts = np.asarray(data["morph_counts"])
+        n_states = int(data["n_states"])
+        L_max = int(data["L_max"])
+        if kind == "machine":
+            return EpsilonMachine(
+                output_alphabet=output_alphabet,
+                n_states=n_states,
+                epsilon=epsilon,
+                morph_counts=morph_counts,
+                L_max=L_max,
+                input_alphabet=input_alphabet,
+            )
+        if kind != "transducer":
+            raise ValueError(
+                f"Unknown model kind {kind!r}; expected 'transducer' or "
+                f"'machine'."
+            )
         return EpsilonTransducer(
             input_alphabet=input_alphabet,
             output_alphabet=output_alphabet,
-            n_states=int(data["n_states"]),
+            n_states=n_states,
             epsilon=epsilon,
             morph_counts=morph_counts,
-            L_max=int(data["L_max"]),
+            L_max=L_max,
         )
 
     @classmethod
@@ -266,7 +330,9 @@ class EpsilonTransducer:
 
     # -- filtering / prediction -------------------------------------------
 
-    def filter(self, xs, ys, memoryless: bool = False):
+    def filter(
+        self, xs: Any, ys: Any, memoryless: bool = False
+    ) -> "FilterResult":
         """Filter causal states and predict outputs for one realization.
 
         Delegates to :func:`transcssr.predict.filter_and_predict`. See that
@@ -276,7 +342,11 @@ class EpsilonTransducer:
         ----------
         xs, ys : sequence
             A single input / output realization each (``str``, ``list``/
-            ``tuple`` of tokens, or 1-d :class:`numpy.ndarray`).
+            ``tuple`` of tokens, or 1-d :class:`numpy.ndarray`). Filtering is
+            defined for one realization only; an ensemble (a list whose
+            elements are themselves sequences) is rejected. A single sequence
+            of tuple tokens or multi-character (word) string tokens therefore
+            cannot be filtered, since it is indistinguishable from an ensemble.
         memoryless : bool, optional
             Output-memoryless filtering (legacy ``memoryless=True``). Default
             ``False``.
@@ -384,6 +454,8 @@ class EpsilonMachine(EpsilonTransducer):
         Overrides the default single-dummy-token alphabet ``Alphabet([0])``.
     """
 
+    _KIND = "machine"
+
     def __init__(
         self,
         output_alphabet: Alphabet,
@@ -409,7 +481,7 @@ class EpsilonMachine(EpsilonTransducer):
         """The output alphabet (output-only convenience accessor)."""
         return self.output_alphabet
 
-    def filter(self, ys, memoryless: bool = False):
+    def filter(self, ys: Any, memoryless: bool = False) -> "FilterResult":
         """Filter causal states and predict outputs for one output realization.
 
         Output-only override of :meth:`EpsilonTransducer.filter`: the dummy
@@ -421,7 +493,10 @@ class EpsilonMachine(EpsilonTransducer):
         ----------
         ys : sequence
             A single output realization (``str``, ``list``/``tuple`` of tokens,
-            or 1-d :class:`numpy.ndarray`).
+            or 1-d :class:`numpy.ndarray`). One realization only; an ensemble
+            (a list whose elements are themselves sequences) is rejected, so a
+            single sequence of tuple or multi-character (word) tokens cannot be
+            filtered.
         memoryless : bool, optional
             Output-memoryless filtering. Default ``False``.
 
@@ -431,7 +506,6 @@ class EpsilonMachine(EpsilonTransducer):
         """
         from .predict import filter_and_predict  # local import avoids a cycle
 
-        y_indices = self.output_alphabet.encode(ys)
         dummy_token = self.input_alphabet.token(0)
-        xs = [dummy_token] * len(y_indices)
+        xs = [dummy_token] * len(ys)
         return filter_and_predict(self, xs, ys, memoryless=memoryless)

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .alphabet import Alphabet
+from .alphabet import Alphabet, _is_sequence, _looks_like_ensemble
 from .counting import estimate_counts
 from .cssr import build_transducer, run_cssr
 from .machine import EpsilonMachine, EpsilonTransducer
@@ -39,44 +39,89 @@ __all__ = ["infer_transducer", "infer_machine"]
 #     realization (this disambiguates ``list[int]`` -> one integer sequence);
 #   * a ``list[str]`` is therefore an ensemble of character sequences (matches
 #     legacy multiline usage); ``list[list[int]]`` is an ensemble.
+#
+# Two documented TRAPS follow directly from this type-based rule, and the
+# ``ensemble=`` parameter of ``infer_transducer`` / ``infer_machine`` is the
+# escape hatch for both:
+#
+#   * TUPLE TOKENS: ``[(0, 0), (0, 1), ...]`` -- a single sequence of tuple
+#     tokens -- auto-detects as an ENSEMBLE of length-2 sequences, because each
+#     tuple element is itself a sequence. Pass ``ensemble=False`` to treat the
+#     whole list as one sequence whose tokens are the tuples.
+#   * WORD TOKENS: ``['the', 'cat', ...]`` -- a single sequence of multi-char
+#     string tokens -- auto-detects as an ENSEMBLE of character sequences (each
+#     ``str`` is a sequence of characters). Pass ``ensemble=False`` to treat the
+#     whole list as one sequence whose tokens are the whole strings.
+#
+# ``ensemble=None`` (default) auto-detects as above; ``ensemble=True`` forces
+# ensemble handling (``seq`` must be a list/tuple of realizations);
+# ``ensemble=False`` forces single-realization handling (``seq`` itself is one
+# realization whose elements are tokens, even if they look like sequences).
 
 
-def _is_sequence(obj: Any) -> bool:
-    """Return ``True`` for accepted sequence containers."""
-    import numpy as np
-
-    return isinstance(obj, (str, list, tuple, np.ndarray))
-
-
-def _looks_like_ensemble(seq: Any) -> bool:
-    """Return ``True`` if ``seq`` is an ensemble (list/tuple of sequences)."""
-    return (
-        isinstance(seq, (list, tuple))
-        and len(seq) > 0
-        and all(_is_sequence(el) for el in seq)
-    )
-
-
-def _normalize_sequences(seq: Any, name: str) -> list:
+def _normalize_sequences(
+    seq: Any, name: str, ensemble: bool | None = None
+) -> list:
     """Normalize a public sequence argument to a list of realizations.
 
     A single realization becomes a one-element list; an ensemble is returned
     as a list of its realizations. See the module-level "Sequence input
-    contract".
+    contract" for the auto-detection rule and the ``ensemble`` escape hatch.
+
+    Parameters
+    ----------
+    seq : sequence or ensemble
+        The public sequence argument.
+    name : str
+        Argument name, used in error messages.
+    ensemble : bool or None, optional
+        ``None`` (default) auto-detects single-vs-ensemble by type. ``True``
+        forces ensemble handling (``seq`` must be a list/tuple of realizations).
+        ``False`` forces single-realization handling: ``seq`` is treated as one
+        realization whose elements are tokens, even if those elements look like
+        sequences (the escape hatch for tuple-token and word-token sequences).
 
     Raises
     ------
+    ValueError
+        If the normalized data contains no symbols at all (e.g. ``''``, ``[]``,
+        or ``['', '']``).
     TypeError
-        If ``seq`` is not a supported sequence type.
+        If ``seq`` is not a supported sequence type, or ``ensemble=True`` is
+        given for a non-list/tuple ``seq``.
     """
-    if _looks_like_ensemble(seq):
-        return list(seq)
-    if _is_sequence(seq):
-        return [seq]
-    raise TypeError(
-        f"{name} must be a sequence (str, list, tuple, or 1-d numpy.ndarray) "
-        f"or an ensemble (list of such sequences); got {type(seq).__name__!r}."
-    )
+    if ensemble is None:
+        if _looks_like_ensemble(seq):
+            realizations = list(seq)
+        elif _is_sequence(seq):
+            realizations = [seq]
+        else:
+            raise TypeError(
+                f"{name} must be a sequence (str, list, tuple, or 1-d "
+                f"numpy.ndarray) or an ensemble (list of such sequences); got "
+                f"{type(seq).__name__!r}."
+            )
+    elif ensemble:
+        if not isinstance(seq, (list, tuple)):
+            raise TypeError(
+                f"{name}: ensemble=True requires a list/tuple of realizations; "
+                f"got {type(seq).__name__!r}."
+            )
+        realizations = list(seq)
+    else:  # ensemble is False: seq itself is a single realization.
+        if not _is_sequence(seq):
+            raise TypeError(
+                f"{name} must be a sequence (str, list, tuple, or 1-d "
+                f"numpy.ndarray); got {type(seq).__name__!r}."
+            )
+        realizations = [seq]
+
+    if sum(len(r) for r in realizations) == 0:
+        raise ValueError(
+            f"{name} contains no symbols; cannot infer a model from empty "
+            f"input. Pass a non-empty sequence or ensemble."
+        )
+    return realizations
 
 
 def _resolve_alphabet(
@@ -119,6 +164,7 @@ def infer_transducer(
     input_alphabet: Alphabet | list | tuple | None = None,
     output_alphabet: Alphabet | list | tuple | None = None,
     stats_mode: str = "correct",
+    ensemble: bool | None = None,
     verbose: bool = False,
 ) -> EpsilonTransducer:
     """Infer an epsilon-transducer from an input/output process.
@@ -136,6 +182,13 @@ def infer_transducer(
         or an ensemble (a ``list``/``tuple`` of such sequences). ``xs`` and
         ``ys`` must have the same structure: the same number of realizations,
         pairwise equal lengths.
+
+        Ensembles are auto-detected by TYPE (``docs/DESIGN.md``): a list whose
+        elements are all sequences is an ensemble. Two traps follow from this
+        rule -- a list of TUPLE tokens ``[(0, 0), (0, 1), ...]`` is otherwise
+        read as an ensemble of length-2 sequences, and a list of multi-char
+        STRING (word) tokens ``['the', 'cat', ...]`` as a character ensemble.
+        Use ``ensemble=False`` to force single-sequence handling in both cases.
     L_max : int
         Maximum history length.
     alpha : float, optional
@@ -151,6 +204,12 @@ def infer_transducer(
         (default) uses the mathematically correct per-input-symbol stride;
         ``'legacy'`` reproduces the legacy stride bug for exact parity with the
         legacy engine (matters only when ``n_x`` is neither ``1`` nor ``n_y``).
+    ensemble : bool or None, optional
+        Override the single-vs-ensemble auto-detection for both ``xs`` and
+        ``ys``. ``None`` (default) auto-detects by type; ``True`` forces
+        ensemble handling; ``False`` forces single-sequence handling (each
+        element of ``xs`` / ``ys`` is a token, even tuple or word tokens that
+        look like sequences). See the "Sequence input contract" traps above.
     verbose : bool, optional
         If ``True``, print a one-line summary of the fitted model. Default
         ``False``.
@@ -168,8 +227,8 @@ def infer_transducer(
     KeyError
         If a data token is absent from a provided alphabet.
     """
-    xs_list = _normalize_sequences(xs, "xs")
-    ys_list = _normalize_sequences(ys, "ys")
+    xs_list = _normalize_sequences(xs, "xs", ensemble=ensemble)
+    ys_list = _normalize_sequences(ys, "ys", ensemble=ensemble)
     if len(xs_list) != len(ys_list):
         raise ValueError(
             f"xs and ys must have the same number of realizations; got "
@@ -217,6 +276,7 @@ def infer_machine(
     test: str = "chi2",
     alphabet: Alphabet | list | tuple | None = None,
     stats_mode: str = "correct",
+    ensemble: bool | None = None,
     verbose: bool = False,
 ) -> EpsilonMachine:
     """Infer an epsilon-machine from an output-only process.
@@ -234,6 +294,12 @@ def infer_machine(
         The output realization(s). A single sequence (``str``, ``list``/
         ``tuple`` of tokens, or 1-d :class:`numpy.ndarray`) or an ensemble (a
         list/tuple of such sequences). See the module "Sequence input contract".
+
+        Ensembles are auto-detected by TYPE. Two traps follow: a list of TUPLE
+        tokens ``[(0, 0), (0, 1), ...]`` reads as an ensemble of length-2
+        sequences, and a list of multi-char STRING (word) tokens
+        ``['the', 'cat', ...]`` as a character ensemble. Pass ``ensemble=False``
+        to force single-sequence handling in both cases.
     L_max : int
         Maximum history length.
     alpha : float, optional
@@ -247,6 +313,12 @@ def infer_machine(
         Morph-comparison stride policy. For an epsilon-machine ``n_x == 1``, so
         the two modes always agree; the flag is exposed for API symmetry.
         Default ``'correct'``.
+    ensemble : bool or None, optional
+        Override the single-vs-ensemble auto-detection for ``ys``. ``None``
+        (default) auto-detects by type; ``True`` forces ensemble handling;
+        ``False`` forces single-sequence handling (each element of ``ys`` is a
+        token, even tuple or word tokens that look like sequences). See the
+        "Sequence input contract" traps above.
     verbose : bool, optional
         If ``True``, print a one-line summary of the fitted machine. Default
         ``False``.
@@ -257,7 +329,7 @@ def infer_machine(
         The canonicalized output-only model. Its input alphabet is the single
         dummy token ``0``.
     """
-    ys_list = _normalize_sequences(ys, "ys")
+    ys_list = _normalize_sequences(ys, "ys", ensemble=ensemble)
     out_alpha = _resolve_alphabet(alphabet, ys_list)
     ys_idx = _encode_realizations(ys_list, out_alpha)
 

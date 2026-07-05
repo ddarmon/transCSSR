@@ -105,6 +105,58 @@ def test_infer_machine_ensemble_vs_single_disambiguation():
 
 
 # ---------------------------------------------------------------------------
+# ensemble= override (Fix 2): escape hatch for the two detection traps
+# ---------------------------------------------------------------------------
+
+
+def test_ensemble_false_tuple_tokens_are_single_sequence():
+    # A single sequence of tuple tokens auto-detects as an ensemble; forcing
+    # ensemble=False keeps the tuples as tokens.
+    seq = [(0, 0), (0, 1), (1, 0), (1, 1)] * 50
+    machine = infer_machine(seq, L_max=2, ensemble=False)
+    # The output alphabet must contain the tuple tokens themselves.
+    assert (0, 0) in machine.output_alphabet.tokens
+    assert (1, 1) in machine.output_alphabet.tokens
+    assert set(machine.output_alphabet.tokens) == {(0, 0), (0, 1), (1, 0), (1, 1)}
+
+
+def test_ensemble_false_word_tokens_are_single_sequence():
+    # ['ab', 'cd'] auto-detects as a 2-char ensemble; ensemble=False makes it
+    # one sequence of two string (word) tokens.
+    assert _normalize_sequences(["ab", "cd"], "ys", ensemble=False) == [["ab", "cd"]]
+    machine = infer_machine(["ab", "cd"] * 50, L_max=1, ensemble=False)
+    assert set(machine.output_alphabet.tokens) == {"ab", "cd"}
+
+
+def test_ensemble_true_forces_ensemble():
+    # ensemble=True treats each element as a realization.
+    assert _normalize_sequences([[0, 1], [1, 0]], "ys", ensemble=True) == [
+        [0, 1],
+        [1, 0],
+    ]
+    # A bare str is not a list/tuple of realizations, so ensemble=True rejects it.
+    with pytest.raises(TypeError):
+        _normalize_sequences("01", "ys", ensemble=True)
+
+
+def test_ensemble_none_default_matches_autodetect():
+    # Defaults unchanged: list[str] still an ensemble, list[int] still single.
+    assert _normalize_sequences(["01", "10"], "ys") == ["01", "10"]
+    assert _normalize_sequences([0, 1, 0, 1], "ys") == [[0, 1, 0, 1]]
+
+
+# ---------------------------------------------------------------------------
+# Empty-input rejection (Fix 3)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("bad", ["", [], ["", ""]])
+def test_infer_machine_empty_input_raises(bad):
+    with pytest.raises(ValueError):
+        infer_machine(bad, L_max=2)
+
+
+# ---------------------------------------------------------------------------
 # Error handling
 # ---------------------------------------------------------------------------
 

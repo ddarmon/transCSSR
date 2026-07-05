@@ -42,12 +42,11 @@ import numpy as np
 import scipy.stats
 
 from .alphabet import Alphabet
-from .machine import EpsilonTransducer
+from .machine import History, EpsilonTransducer, _iter_transition_sources
 from .stats import compare_morphs as _correct_compare_morphs
 
 __all__ = ["run_cssr", "build_transducer"]
 
-History = tuple[tuple[int, ...], tuple[int, ...]]
 Epsilon = dict[History, int]
 InvEpsilon = dict[int, dict[History, bool]]
 MorphByState = dict[int, list[int]]
@@ -268,15 +267,9 @@ def _connected_component(
 
     for state in states:
         i = states_to_index[state]
-        hists = list(invepsilon[state].keys())
-        need_lmax = not any(len(h[0]) == L_max - 1 for h in hists)
-        for hist in hists:
-            if len(hist[0]) == L_max:
-                if not need_lmax:
-                    continue
-                base_x, base_y = hist[0][1:], hist[1][1:]
-            else:
-                base_x, base_y = hist[0], hist[1]
+        for base_x, base_y in _iter_transition_sources(
+            invepsilon[state].keys(), L_max
+        ):
             for ex, ey in e_symbols:
                 s = epsilon.get((base_x + (ex,), base_y + (ey,)), -1)
                 if s != -1:

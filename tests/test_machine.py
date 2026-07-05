@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -128,6 +130,57 @@ def test_json_roundtrip_integer_tokens(tmp_path):
     assert restored.input_alphabet == Alphabet([0])
     assert restored.epsilon == model.epsilon
     np.testing.assert_array_equal(restored.morph_counts, model.morph_counts)
+
+
+def test_machine_json_roundtrip_preserves_class(tmp_path):
+    """A machine survives JSON roundtrip as an EpsilonMachine (Fix 1).
+
+    ``EpsilonMachine.from_json`` must return an :class:`EpsilonMachine` (not a
+    demoted :class:`EpsilonTransducer`), so the output-only ``.filter(ys)``
+    surface keeps working and produces the same result as before serialization.
+    """
+    from transcssr import infer_machine
+
+    y = (
+        (Path(__file__).resolve().parent.parent / "data" / "even.dat")
+        .read_text()
+        .strip()[:5000]
+    )
+    machine = infer_machine(y, L_max=3)
+    before = machine.filter(y)  # output-only surface
+
+    path = tmp_path / "machine.json"
+    machine.to_json(path)
+    restored = EpsilonMachine.from_json(path)
+
+    assert isinstance(restored, EpsilonMachine)
+    after = restored.filter(y)  # would TypeError on a demoted transducer
+    assert after.states == before.states
+    np.testing.assert_array_equal(after.prediction_probs, before.prediction_probs)
+
+
+def test_machine_from_json_kind_wins_over_cls(tmp_path):
+    """``kind`` in the file, not the calling class, decides the type (Fix 1)."""
+    machine = _even_process_machine()
+    path = tmp_path / "machine.json"
+    machine.to_json(path)
+
+    # Calling EpsilonTransducer.from_json on a machine file still yields a machine.
+    restored = EpsilonTransducer.from_json(path)
+    assert isinstance(restored, EpsilonMachine)
+
+
+def test_transducer_json_kind_field():
+    """``to_dict`` tags transducers vs. machines with a ``kind`` field (Fix 1)."""
+    out = Alphabet([0, 1])
+    machine = EpsilonMachine(out, n_states=1, epsilon={((0,), (0,)): 0},
+                             morph_counts=np.array([[1, 1]]), L_max=1)
+    assert machine.to_dict()["kind"] == "machine"
+
+    in_alpha = Alphabet(["a"])
+    trans = EpsilonTransducer(in_alpha, out, 1, {((0,), (0,)): 0},
+                              np.array([[1, 1]]), 1)
+    assert trans.to_dict()["kind"] == "transducer"
 
 
 def test_json_non_representable_tokens_error():

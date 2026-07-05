@@ -34,10 +34,11 @@ from __future__ import annotations
 from collections import Counter
 from typing import Sequence, Tuple
 
-__all__ = ["estimate_counts"]
+from .machine import History  # single-home History alias (docs/DESIGN.md)
+
+__all__ = ["estimate_counts", "History"]
 
 IndexSeq = Sequence[int]
-History = Tuple[Tuple[int, ...], Tuple[int, ...]]
 
 
 def estimate_counts(

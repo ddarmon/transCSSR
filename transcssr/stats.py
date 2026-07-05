@@ -134,8 +134,10 @@ def morphs_differ(
 ) -> bool:
     """Return ``True`` if the two morphs are statistically different.
 
-    Thin wrapper over :func:`compare_morphs` returning only the rejection
-    decision. ``True`` means "reject the null / split the histories".
+    Public convenience wrapper over :func:`compare_morphs` returning only the
+    rejection decision (``True`` means "reject the null / split the histories").
+    The CSSR engine calls :func:`compare_morphs` directly; this wrapper is
+    provided for callers who want just the decision.
 
     See :func:`compare_morphs` for parameter descriptions.
     """
@@ -153,8 +155,10 @@ def morphs_pvalue(
 ) -> float:
     """Return the p-value of comparing the two morphs.
 
-    Exposed for the CSSR Stage-1 existing-state matching step, which argmaxes
-    over p-values among candidate states.
+    Public convenience wrapper over :func:`compare_morphs` returning only the
+    p-value. The CSSR engine calls :func:`compare_morphs` directly (its
+    Stage-1 existing-state matching argmaxes over p-values internally); this
+    wrapper is provided for callers who want just the p-value.
 
     See :func:`compare_morphs` for parameter descriptions.
     """
