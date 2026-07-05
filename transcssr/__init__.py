@@ -1,20 +1,23 @@
 """Token-first reimplementation of the transCSSR library.
 
-Public API (foundation modules). Inference entry points
-(``infer_transducer`` / ``infer_machine``) are re-exported once implemented;
-they are guarded here so the package imports cleanly before they exist.
+Public API: alphabet + model classes, the two inference entry points
+(``infer_transducer`` / ``infer_machine``), and filtering/prediction
+(``filter_and_predict`` / ``FilterResult``).
 """
 
 from __future__ import annotations
 
 from .alphabet import Alphabet
+from .api import infer_machine, infer_transducer
 from .machine import EpsilonMachine, EpsilonTransducer
+from .predict import FilterResult, filter_and_predict
 
-__all__ = ["Alphabet", "EpsilonTransducer", "EpsilonMachine"]
-
-try:  # pragma: no cover - optional until cssr.py lands
-    from .cssr import infer_machine, infer_transducer  # type: ignore
-except ImportError:
-    pass
-else:
-    __all__ += ["infer_machine", "infer_transducer"]
+__all__ = [
+    "Alphabet",
+    "EpsilonTransducer",
+    "EpsilonMachine",
+    "infer_transducer",
+    "infer_machine",
+    "filter_and_predict",
+    "FilterResult",
+]

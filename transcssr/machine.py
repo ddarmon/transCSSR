@@ -264,6 +264,31 @@ class EpsilonTransducer:
             data = json.load(fh)
         return cls.from_dict(data)
 
+    # -- filtering / prediction -------------------------------------------
+
+    def filter(self, xs, ys, memoryless: bool = False):
+        """Filter causal states and predict outputs for one realization.
+
+        Delegates to :func:`transcssr.predict.filter_and_predict`. See that
+        function for the exact semantics (``docs/SPEC-core.md`` §5).
+
+        Parameters
+        ----------
+        xs, ys : sequence
+            A single input / output realization each (``str``, ``list``/
+            ``tuple`` of tokens, or 1-d :class:`numpy.ndarray`).
+        memoryless : bool, optional
+            Output-memoryless filtering (legacy ``memoryless=True``). Default
+            ``False``.
+
+        Returns
+        -------
+        transcssr.predict.FilterResult
+        """
+        from .predict import filter_and_predict  # local import avoids a cycle
+
+        return filter_and_predict(self, xs, ys, memoryless=memoryless)
+
     # -- DOT export --------------------------------------------------------
 
     def to_dot(self, path: str | Path, all_digits: bool = False) -> None:
@@ -383,3 +408,30 @@ class EpsilonMachine(EpsilonTransducer):
     def alphabet(self) -> Alphabet:
         """The output alphabet (output-only convenience accessor)."""
         return self.output_alphabet
+
+    def filter(self, ys, memoryless: bool = False):
+        """Filter causal states and predict outputs for one output realization.
+
+        Output-only override of :meth:`EpsilonTransducer.filter`: the dummy
+        constant input stream (the single input token, index ``0``) is supplied
+        internally, matching the legacy ``stringX = '0' * len(stringY)``
+        convention.
+
+        Parameters
+        ----------
+        ys : sequence
+            A single output realization (``str``, ``list``/``tuple`` of tokens,
+            or 1-d :class:`numpy.ndarray`).
+        memoryless : bool, optional
+            Output-memoryless filtering. Default ``False``.
+
+        Returns
+        -------
+        transcssr.predict.FilterResult
+        """
+        from .predict import filter_and_predict  # local import avoids a cycle
+
+        y_indices = self.output_alphabet.encode(ys)
+        dummy_token = self.input_alphabet.token(0)
+        xs = [dummy_token] * len(y_indices)
+        return filter_and_predict(self, xs, ys, memoryless=memoryless)
