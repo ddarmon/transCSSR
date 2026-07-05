@@ -1,0 +1,98 @@
+{
+  "meta": {
+    "name": "multiline_ensemble",
+    "dataset": null,
+    "truncation": null,
+    "is_multiline": true,
+    "L_max": 2,
+    "alpha": 0.001,
+    "test_type": "chi2",
+    "axs": [
+      "a",
+      "b",
+      "c"
+    ],
+    "ays": [
+      "0",
+      "1"
+    ],
+    "e_symbols": [
+      [
+        "a",
+        "0"
+      ],
+      [
+        "a",
+        "1"
+      ],
+      [
+        "b",
+        "0"
+      ],
+      [
+        "b",
+        "1"
+      ],
+      [
+        "c",
+        "0"
+      ],
+      [
+        "c",
+        "1"
+      ]
+    ],
+    "filter_note": "filter_and_predict is not defined for multiline/ensemble input; skipped."
+  },
+  "partition": [
+    [
+      [
+        "a",
+        "0"
+      ],
+      [
+        "a",
+        "1"
+      ],
+      [
+        "ab",
+        "01"
+      ],
+      [
+        "ac",
+        "00"
+      ],
+      [
+        "b",
+        "1"
+      ],
+      [
+        "ba",
+        "10"
+      ],
+      [
+        "c",
+        "0"
+      ],
+      [
+        "ca",
+        "00"
+      ],
+      [
+        "ca",
+        "01"
+      ]
+    ]
+  ],
+  "morphs": [
+    [
+      14,
+      2,
+      2,
+      9,
+      8,
+      0
+    ]
+  ],
+  "filter": null
+}
