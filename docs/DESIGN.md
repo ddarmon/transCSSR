@@ -61,9 +61,9 @@ machine = infer_machine(ys, L_max=3, alpha=0.001, test="chi2",
 
 result = model.filter(xs, ys)        # FilterResult
 result.states                        # list[int], one state per time step (-1 = unsynchronized)
-result.probs                         # ndarray, P(state correct-synchronization proxy) per legacy semantics
 result.predictions                   # list of predicted output *tokens* (None where legacy emitted 'N')
-result.prediction_probs              # ndarray (T, |Y|): P(Y_t | past, X_t) per step
+result.prediction_probs              # ndarray (T, |Y|): P(Y_t | X_t, past) per step
+                                     # (legacy filtered_probs == prediction_probs[:, 1] for binary Y)
 
 model.to_json(path); EpsilonTransducer.from_json(path)
 model.to_dot(path)                   # export-only visualization
@@ -138,17 +138,37 @@ class EpsilonTransducer:
 
 ## Algorithm modules
 
-- `stats.py`: reimplement `chisquared_test` semantics exactly (chi2 and G)
-  on morph count vectors. Pure functions, no I/O.
+- `stats.py`: reimplement `chisquared_test` semantics (chi2 and G) on
+  morph count vectors, using the CORRECT per-input-symbol row stride
+  `len(ays)` (SPEC-core.md §2.1 documents a latent legacy stride bug,
+  `row_ind*len(axs)`; it is untriggered whenever `len(axs) in {1, len(ays)}`,
+  which covers all golden cases, so correct code still passes parity).
+  Data-dependent `df`, skip rows unseen in either morph. Pure functions.
 - `cssr.py`: `run_cssr(counts, L_max, n_x, n_y, alpha, test) -> partition`
-  following SPEC-core.md's walkthrough of legacy `run_transCSSR`:
-  splitting loop, determinization, transient removal. Replace igraph
-  connected-components with a plain BFS/DFS over the transition graph
-  (no igraph dependency). All iteration orders must be deterministic:
-  iterate histories and states in sorted order.
-- `predict.py`: reimplement `filter_and_predict` semantics (synchronization,
-  the legacy `'N'` placeholder becomes `None` in token space, `memoryless`
-  flag) against the model class.
+  following SPEC-core.md's staged walkthrough of legacy `run_transCSSR`
+  (Stage 1 homogenize → 1b prune → transient removal → Stage 3 determinize
+  → cleanup → transient removal). **Order-dependence is semantics here**
+  (SPEC §6.1): the resulting partition — not just numbering — depends on
+  iteration order. The implementation must replicate legacy ordering
+  exactly: insertion-ordered dicts for states/histories, child generation
+  `for ay in ays: for ax in axs:`, first-wins strict-`>` argmax state
+  matching, mid-pass parent-morph mutation, and the determinization
+  pilot-selection order. Canonical relabeling of final states is applied
+  only AFTER the algorithm completes (pure renaming — safe).
+  Replace igraph with hand-rolled **strongly connected components**
+  (Tarjan or Kosaraju — legacy `clusters()` default is STRONG mode);
+  transient removal keeps the largest recurrent SCC, smallest SCC id on
+  size ties (legacy `scipy.stats.mode` behavior).
+  Legacy Stage 4 (optional morph re-estimation when `stringX`/`stringY`
+  are passed) is OUT of phase-1 scope: it is unused by demos and buggy
+  for `len(axs) > 1` (SPEC §6.3.2); raise `NotImplementedError`.
+- `predict.py`: reimplement `filter_and_predict` semantics (synchronization
+  per SPEC §5.2, the legacy `'N'` placeholder becomes `None` in token
+  space, `memoryless` flag) against the model class. Return the FULL
+  per-step distribution `prediction_probs` of shape `(T, |Y|)` — the
+  legacy `filtered_probs` is hardwired to output index 1 (binary-only,
+  SPEC §6.3.6); parity compares legacy `filtered_probs` against
+  `prediction_probs[:, 1]` on binary cases only.
 
 ## Parity requirements (tested in `tests/test_parity.py`)
 
