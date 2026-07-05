@@ -22,6 +22,8 @@ Modules and responsibilities:
 
 - `alphabet.py` --- `Alphabet`: immutable token <-> index bijection.
 - `counting.py` --- `estimate_counts`: history counting (legacy `counting_method=0`).
+- `countstore.py` --- `CountStore`: the two-query count-access abstraction `run_cssr` reads through (`children` / `extensions`, per-history, on-demand). Backends: `CounterCountStore` (materialized `marg`/`fut` Counters; default and parity oracle) and `SuffixArrayCountStore` (on-demand suffix-array counts over the product-coded joint stream with an edge-effect tail-correction table; **bit-exact same models**, O(T) memory instead of per-window Counter keys — for large-T runs). Selected via `count_backend="counter"|"suffix"` on `infer_*`.
+- `_suffix.py` --- private `SuffixIndex`: pure-numpy suffix array (sentinel-separated realizations, lazy reversed-corpus twin) with count / range / left- and right-extension / position queries; `pydivsufsort` is an optional, never-declared construction fast path.
 - `stats.py` --- `compare_morphs`: chi2 / G morph comparison, correct `len(ays)` stride.
 - `cssr.py` --- `run_cssr` / `build_transducer`: the state-splitting + determinization algorithm on index tuples. Order-dependence is semantics; legacy iteration order is replicated exactly (see the module docstring and its `LEGACY QUIRK` comments).
 - `machine.py` --- `EpsilonTransducer` / `EpsilonMachine`: model classes, JSON serialization, DOT export.
@@ -60,7 +62,7 @@ Canonical command (uv-native): run the full suite from the repo root.
 
 ```bash
 uv sync --group dev            # first time / after dependency changes
-uv run python -m pytest -q     # 157 passed
+uv run python -m pytest -q     # 351 passed, 1 skipped
 ```
 
 The `dev` dependency group (PEP 735 `[dependency-groups]` in
