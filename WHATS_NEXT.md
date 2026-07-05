@@ -125,6 +125,37 @@ policy applies only to the already-ported partition algorithm).
       DOT labels) are re-implemented or rejected — the TokenAdapter
       approach itself is superseded by this migration.
 
+## 4. Research thread: CSSR on natural language (the E-experiments)
+
+Decided 2026-07-05: **skip the standalone E0 feasibility study** (the
+perf pass + suffix-array backend + E1 pilot already located the walls
+empirically) and go straight to scaling the E1 pilot. Next session
+starts here.
+
+- [ ] **E1 scale-up** — extend `examples/experimental/e1_pilot.py`
+      (or promote it to a proper experiment script): text8 at 10M chars
+      and beyond, L = 4–5, `count_backend="suffix"` for the memory
+      headroom. Watch the two known pressure points: the O(#states)
+      Stage-1 matching loop (3,684 states / 212 s at 1M chars, L=3 —
+      expect superlinear growth; measure the state-count-vs-T curve, it
+      is also the E5 scientific result) and held-out zero-probability
+      events (1.47% at 1M — needs an explicit backoff policy, e.g.
+      interpolate MSP predictions with the longest-suffix empirical
+      distribution; add to the scorer as an OPTION, `log_loss` itself
+      stays unsmoothed).
+- [ ] **Mini-E2 vocab ladder on the same script** — a `--vocab` option
+      (tiny BPE or top-V words + char fallback) at n_y ∈ {27, 256,
+      1024}, reporting held-out **bits per byte** (the only fair
+      cross-tokenization metric). Prediction on record: U-shaped or
+      worsening in vocab; char level ~2.4 bpc measured.
+- [ ] **Simulation port** (`simulate_eM` etc., see §1) — no longer
+      gated on an E0 study, but still wanted for recovery sanity checks
+      and the bootstrap; cheap, self-contained.
+- Deferred until the scale-up data says otherwise: approximate state
+  matching (opt-in non-parity mode) and adaptive-depth CSSR (unlocked
+  by the suffix backend; the statistically-honest replacement for
+  fixed L_max).
+
 ## Decided and closed (do not reopen without new evidence)
 
 - New engine defaults to the **correct** chi2/G stride;
