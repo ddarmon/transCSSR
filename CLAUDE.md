@@ -27,6 +27,7 @@ Modules and responsibilities:
 - `machine.py` --- `EpsilonTransducer` / `EpsilonMachine`: model classes, JSON serialization, DOT export.
 - `predict.py` --- `filter_and_predict` / `FilterResult`: filtering and MAP prediction.
 - `api.py` --- `infer_transducer` / `infer_machine`: public inference entry points (normalize -> encode -> count -> CSSR -> build model).
+- `cli.py` --- the `transcssr` command (typer app): subcommands `infer` / `filter` / `show` / `export-dot`, plus `--version`. Pure argument-parsing + I/O glue; all inference logic stays in `api`/`machine`. **`typer` is imported ONLY here** (the sole non-numpy/scipy runtime dep); engine modules must never import `cli` or `typer`.
 
 Public API:
 
@@ -53,7 +54,7 @@ Canonical command (uv-native): run the full suite from the repo root.
 
 ```bash
 uv sync --group dev            # first time / after dependency changes
-uv run python -m pytest -q     # 144 passed
+uv run python -m pytest -q     # 157 passed
 ```
 
 The `dev` dependency group (PEP 735 `[dependency-groups]` in
@@ -67,6 +68,7 @@ python -m pytest -q`.
 - Unit tests: `tests/test_alphabet.py`, `test_counting.py`, `test_stats.py`, `test_machine.py`, etc.
 - Parity gate: `tests/test_cssr.py` and `tests/test_predict.py` compare the new engine against the legacy oracle (partition, morphs, filtered states, probabilities, predictions).
 - Executable docs: `tests/test_readme_examples.py` mirrors the two README quickstarts verbatim --- keep them in sync when editing either.
+- CLI tests: `tests/test_cli.py` drives the `transcssr` command in-process via `typer.testing.CliRunner`.
 - Golden fixtures: `tests/golden/*.json` are captured legacy outputs; regenerate with `scripts/capture_golden.py` (do not hand-edit).
 
 ## Packaging
@@ -75,7 +77,8 @@ python -m pytest -q`.
 `py-modules` make setuptools the pragmatic choice; do not switch to
 `uv_build`/hatchling). Distribution name `transCSSR`, version 1.1.x.
 - `packages = ["transcssr"]` plus `py-modules = ["transCSSR", "filter_data_methods"]` (legacy surface).
-- Engine deps: `numpy`, `scipy`. Legacy deps are the optional `[legacy]` extra (`python-igraph`, `pandas`, `matplotlib`, `joblib`, `tqdm`).
+- Engine deps: `numpy`, `scipy`, plus `typer` for the CLI (imported only by `cli.py`). Legacy deps are the optional `[legacy]` extra (`python-igraph`, `pandas`, `matplotlib`, `joblib`, `tqdm`).
+- Console script: `[project.scripts]` `transcssr = "transcssr.cli:app"`.
 - Dev tooling: the PEP 735 `[dependency-groups]` `dev` group = `pytest` + a self-reference to the `transCSSR[legacy]` extra (so the full/parity suite runs without duplicating the legacy dep list).
 - Python `>=3.10`; `.python-version` pins `3.13` for the uv workflow.
 - uv-native: `uv sync` / `uv sync --group dev`, resolved from the committed `uv.lock` (tracked; `.venv/` is gitignored).

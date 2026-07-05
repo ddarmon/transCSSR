@@ -170,6 +170,52 @@ counts --- to a versioned JSON document.
 > These two quickstarts are executed verbatim as tests in
 > `tests/test_readme_examples.py`, so the code above is guaranteed to run.
 
+## Command-line interface
+
+Installing the package (via `uv sync` or `pip install -e .`) also installs a
+`transcssr` command. It wraps the same engine as the Python API in four
+subcommands: `infer`, `filter`, `show`, and `export-dot`. Run any of them
+inside the managed environment with `uv run`.
+
+Infer the even-process epsilon-machine and inspect it:
+
+``` bash
+uv run transcssr infer -y data/even.dat -L 3 -o even.json
+# stderr: infer: machine, 2 state(s), n_y=2, L_max=3.
+
+uv run transcssr show -m even.json
+# kind: machine
+# n_states: 2
+# L_max: 3
+# output_alphabet (2): '0', '1'
+# ...per-state emission-probability table...
+```
+
+Infer an epsilon-transducer from a delay channel (pass `-x` for the input
+stream) and export a Graphviz `.dot`:
+
+``` bash
+uv run transcssr infer -y data/Yt_delay-channel.dat -x data/Xt_delay-channel.dat \
+    -L 2 -o delay.json
+uv run transcssr export-dot -m delay.json -o delay.dot
+```
+
+Filter a data file through a trained model, writing a CSV of the filtered
+state, MAP prediction, and per-output-token probabilities to stdout (or to
+`-o FILE`):
+
+``` bash
+uv run transcssr filter -m even.json -y data/even.dat -o even_filtered.csv
+# columns: t,state,prediction,p_0,p_1
+```
+
+Data-reading options are shared by `infer` and `filter`: `--format chars`
+(default; each character a token, the legacy `.dat` convention) or
+`--format tokens` (whitespace-separated tokens, with `--token-type auto|int|str`);
+`--multiline` treats each nonempty line as one realization (an ensemble). User
+errors (missing file, bad format, machine/transducer mismatch) exit with code
+`2` and a one-line message. `uv run transcssr --version` prints the version.
+
 ## API overview
 
 ``` python

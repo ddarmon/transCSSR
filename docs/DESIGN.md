@@ -26,6 +26,8 @@ transcssr/
     cssr.py         # the CSSR algorithm, operating on index tuples
     machine.py      # EpsilonTransducer / EpsilonMachine + serialization + DOT export
     predict.py      # filtering / prediction with a fitted model
+    api.py          # infer_transducer / infer_machine (public inference entry points)
+    cli.py          # `transcssr` console script (typer; imported only here)
 tests/
     test_alphabet.py, test_machine.py, ...   # unit tests for new modules
     test_parity.py                           # legacy-vs-new parity tests
@@ -151,6 +153,34 @@ class EpsilonTransducer:
   (edge labels `y|x:prob`), with multi-character tokens rendered via
   `str(token)`.
 
+## CLI (`transcssr/cli.py`)
+
+A thin [typer](https://typer.tiangolo.com/) app exposing the engine as the
+`transcssr` console script (`[project.scripts] transcssr =
+"transcssr.cli:app"`). It is pure argument-parsing and file I/O glue: all
+inference and model logic stays in `api`/`machine`. `typer` is imported *only*
+here; the CLI-only data-file reader also lives here, not in the engine.
+
+Subcommand surface:
+
+- `infer -y OUT [-x IN] -L L_MAX [--alpha --test --stats-mode --dot] -o MODEL.json`
+  — `-x` present -> `infer_transducer`; absent -> `infer_machine`. Writes the
+  model JSON; one-line summary (n_states, alphabet sizes) to stderr.
+- `filter -m MODEL.json -y OUT [-x IN] [-o OUT.csv]` — loads via
+  `from_json` (dispatches machine/transducer on the JSON `"kind"`; machines
+  forbid `-x`, transducers require it), runs `model.filter`, writes a CSV
+  `t,state,prediction` + one `p_<token>` column per output token.
+- `show -m MODEL.json` — plain-text summary: kind, alphabets, n_states,
+  L_max, and a per-state emission-probability table.
+- `export-dot -m MODEL.json -o OUT.dot` — thin wrapper over `to_dot`.
+- Global `--version` reads the package version via `importlib.metadata`.
+
+Shared data-reading options for `infer`/`filter`: `--format chars|tokens`,
+`--multiline` (each nonempty line is one realization), `--token-type
+auto|int|str` (tokens format only). User errors (missing file, bad format,
+unknown token, machine/transducer mismatch) exit code `2` with a one-line
+stderr message and no traceback; library bugs may still traceback.
+
 ## Algorithm modules
 
 - `stats.py`: reimplement `chisquared_test` semantics (chi2 and G) on
@@ -209,9 +239,12 @@ For each golden case and each live legacy-vs-new run:
 
 ## Dependency and style policy
 
-- Runtime deps of `transcssr/`: **numpy and scipy only.** No igraph,
-  pandas, matplotlib, tqdm, or joblib in the package. (Legacy modules keep
-  their deps; that's fine.)
+- Runtime deps of `transcssr/`: **numpy and scipy for the engine modules;
+  typer additionally, but imported ONLY by `transcssr/cli.py`.** No igraph,
+  pandas, matplotlib, tqdm, or joblib in the package. Engine modules
+  (`api`, `machine`, `predict`, `cssr`, `counting`, `stats`, `alphabet`)
+  stay pure numpy/scipy and must never import `cli` or `typer`. (Legacy
+  modules keep their deps; that's fine.)
 - Python >= 3.10. Full type hints. 4-space indents, PEP8 naming.
   Docstrings in numpydoc style (matches the legacy house style).
 - No prints in library code; use warnings/exceptions. A `verbose` flag may
