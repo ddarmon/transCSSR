@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from .alphabet import Alphabet
 from .api import infer_machine, infer_transducer
+from .countstore import CountStore, CounterCountStore, SuffixArrayCountStore
 from .machine import EpsilonMachine, EpsilonTransducer
 from .msp import (
     LogLoss,
@@ -25,6 +26,9 @@ from .predict import FilterResult, filter_and_predict
 
 __all__ = [
     "Alphabet",
+    "CountStore",
+    "CounterCountStore",
+    "SuffixArrayCountStore",
     "EpsilonTransducer",
     "EpsilonMachine",
     "infer_transducer",

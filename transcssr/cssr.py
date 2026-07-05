@@ -42,6 +42,7 @@ import numpy as np
 import scipy.stats
 
 from .alphabet import Alphabet
+from .countstore import CountStore, CounterCountStore
 from .machine import History, EpsilonTransducer, _iter_transition_sources
 from .stats import compare_morphs as _correct_compare_morphs
 
@@ -330,8 +331,8 @@ def _remove_transients(
 
 
 def run_cssr(
-    marg: Counter,
-    fut: Counter,
+    marg: Counter | CountStore,
+    fut: Counter | None,
     L_max: int,
     n_x: int,
     n_y: int,
@@ -348,14 +349,31 @@ def run_cssr(
     monotonically increasing counter; they are **not** guaranteed contiguous
     (splits and removals leave gaps) and are **not** canonicalized here.
 
+    The engine reads counts only through the narrow
+    :class:`~transcssr.countstore.CountStore` query surface (``children`` and
+    ``extensions``; see that module). Two calling conventions are supported:
+
+    * **Counters (default, backward compatible).** Pass ``marg`` and ``fut``
+      as the usual :class:`collections.Counter` tables; they are wrapped in a
+      :class:`~transcssr.countstore.CounterCountStore` internally.
+    * **A pre-built store.** Pass a
+      :class:`~transcssr.countstore.CountStore` as the first positional
+      argument with ``fut=None``; it is used directly (letting a memory-lean
+      backend answer per-history queries on demand). Its
+      :attr:`~transcssr.countstore.CountStore.n_y` must equal the ``n_y``
+      argument.
+
     Parameters
     ----------
-    marg : collections.Counter
+    marg : collections.Counter or CountStore
         Legacy ``word_lookup_marg``: maps ``(x_hist, y_hist)`` with
-        ``len(x_hist) == len(y_hist) + 1`` to its count.
-    fut : collections.Counter
+        ``len(x_hist) == len(y_hist) + 1`` to its count. Alternatively a
+        pre-built :class:`~transcssr.countstore.CountStore`, in which case
+        ``fut`` must be ``None``.
+    fut : collections.Counter or None
         Legacy ``word_lookup_fut``: maps equal-length ``(x_hist, y_hist)`` to
-        its count.
+        its count. Must be ``None`` when ``marg`` is a
+        :class:`~transcssr.countstore.CountStore`.
     L_max : int
         Maximum history length.
     n_x, n_y : int
@@ -392,53 +410,35 @@ def run_cssr(
             f"Unknown stats_mode {stats_mode!r}; expected 'correct' or 'legacy'."
         )
 
+    # -- Count access via the CountStore abstraction. ---------------------
+    # The engine reads counts only through ``store.children`` (the occurring
+    # ``(y_ind, x_ind)`` child prepends of a history, so Stage 1 iterates only
+    # children that actually occur) and ``store.extensions`` (the observed
+    # ``(flat_pos, count)`` emission extensions, scattered below into a dense
+    # morph). Plain Counters are wrapped in a ``CounterCountStore`` (which
+    # builds those inverted indexes; see ``transcssr.countstore``); a pre-built
+    # store may be passed directly as ``marg`` with ``fut=None``.
+    if isinstance(marg, CountStore):
+        if fut is not None:
+            raise ValueError(
+                "When 'marg' is a CountStore, 'fut' must be None; the store "
+                "already holds both count indexes."
+            )
+        store: CountStore = marg
+        if store.n_y != n_y:
+            raise ValueError(
+                f"CountStore.n_y ({store.n_y}) does not match n_y ({n_y})."
+            )
+    else:
+        store = CounterCountStore(marg, fut, n_y)
+
     e_symbols = _emission_symbols(n_x, n_y)
     n_e = len(e_symbols)
-
-    # -- Precomputed occurrence / extension indexes. ----------------------
-    # Built in one pass each over ``marg`` and ``fut`` so that Stage 1 iterates
-    # only the children that actually occur, and every dense morph is assembled
-    # by scattering the observed emission extensions into a zeroed vector in
-    # O(support) time instead of ``n_x * n_y`` dict lookups.
-    #
-    # ``occ_children[(hx, hy)]`` -> the ``(y_ind, x_ind)`` child prepends of
-    # history ``(hx, hy)`` that occur, i.e. for which some next input ``ax2``
-    # has ``marg[((x_ind,) + hx + (ax2,), (y_ind,) + hy)] != 0``. A ``marg`` key
-    # ``(mx, my)`` with ``len(mx) >= 2`` is exactly such an occurrence of the
-    # child ``((mx[0],) + mx[1:-1], (my[0],) + my[1:])`` of history
-    # ``(mx[1:-1], my[1:])``, so we invert the marg keys directly. The child
-    # generation order is output-outer / input-inner (legacy
-    # ``for ay: for ax:``), which fixes new-state numbering (SPEC §6.1(1));
-    # iterating the occurring ``(y_ind, x_ind)`` pairs in ``(y_ind, x_ind)``
-    # sorted order is equivalent because non-occurring children only `continue`.
-    _occ: dict[History, set[tuple[int, int]]] = defaultdict(set)
-    for (mx, my), count in marg.items():
-        if count == 0 or len(mx) < 2:
-            continue
-        history = (mx[1:-1], my[1:])
-        _occ[history].add((my[0], mx[0]))
-    occ_children: dict[History, list[tuple[int, int]]] = {
-        hist: sorted(pairs) for hist, pairs in _occ.items()
-    }
-
-    # ``fut_by_history[(hx, hy)]`` -> list of ``(flat_pos, count)`` where a
-    # length-``L+1`` ``fut`` key ``(fx, fy)`` extends history ``(fx[:-1],
-    # fy[:-1])`` by emission ``(fx[-1], fy[-1])`` at flat morph index
-    # ``n_y * fx[-1] + fy[-1]``. Each ``(ex, ey)`` occurs at most once per
-    # history (unique ``fut`` keys), so scattering with ``=`` reproduces the
-    # dense ``[fut[...] for ex, ey in e_symbols]`` vector exactly.
-    fut_by_history: dict[History, list[tuple[int, int]]] = defaultdict(list)
-    for (fx, fy), count in fut.items():
-        if count == 0 or len(fx) == 0:
-            continue
-        history = (fx[:-1], fy[:-1])
-        pos = n_y * fx[-1] + fy[-1]
-        fut_by_history[history].append((pos, count))
 
     def _dense_morph(history: History) -> np.ndarray:
         """Dense length-``n_e`` int64 morph of ``history`` (O(observed support))."""
         m = np.zeros(n_e, dtype=np.int64)
-        for pos, count in fut_by_history.get(history, ()):
+        for pos, count in store.extensions(history):
             m[pos] = count
         return m
 
@@ -467,14 +467,14 @@ def run_cssr(
                 # Child generation order: output-outer, input-inner
                 # (legacy `for ay in ays: for ax in axs:`); this fixes the
                 # order in which new states are numbered (SPEC §6.1(1)).
-                # ``occ_children`` supplies exactly the children that occur, in
-                # ``(y_ind, x_ind)`` sorted order -- equivalent to the legacy
+                # ``store.children`` supplies exactly the children that occur,
+                # in ``(y_ind, x_ind)`` sorted order -- equivalent to the legacy
                 # double loop because non-occurring children only `continue`.
                 # (LEGACY QUIRK, SPEC §6.3.5: the legacy occurrence test's inner
                 # `for ax` shadows the outer input loop var; harmless because
                 # ``new_history`` is already fixed, and it is subsumed here by
                 # the precomputed marg-key occurrence index.)
-                for y_ind, x_ind in occ_children.get(history, ()):
+                for y_ind, x_ind in store.children(history):
                     new_history: History = (
                         (x_ind,) + history[0],
                         (y_ind,) + history[1],

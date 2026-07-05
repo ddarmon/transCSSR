@@ -19,6 +19,7 @@ from typing import Any
 
 from .alphabet import Alphabet, _is_sequence, _looks_like_ensemble
 from .counting import estimate_counts
+from .countstore import SuffixArrayCountStore
 from .cssr import build_transducer, run_cssr
 from .machine import EpsilonMachine, EpsilonTransducer
 
@@ -155,6 +156,39 @@ def _encode_realizations(realizations: list, alphabet: Alphabet) -> list[tuple[i
     return [alphabet.encode(seq) for seq in realizations]
 
 
+def _run_cssr_backend(
+    xs_idx: list,
+    ys_idx: list,
+    L_max: int,
+    n_x: int,
+    n_y: int,
+    alpha: float,
+    test: str,
+    stats_mode: str,
+    count_backend: str,
+):
+    """Run CSSR with the chosen count backend (``"counter"`` or ``"suffix"``).
+
+    Both backends read counts through the identical
+    :class:`~transcssr.countstore.CountStore` surface and therefore produce the
+    same partition; they differ only in how the counts are stored (materialized
+    Counters vs. an on-demand suffix array). Returns the ``run_cssr`` triple.
+    """
+    if count_backend == "counter":
+        marg, fut = estimate_counts(xs_idx, ys_idx, L_max)
+        return run_cssr(
+            marg, fut, L_max, n_x, n_y, alpha=alpha, test=test, stats_mode=stats_mode
+        )
+    if count_backend == "suffix":
+        store = SuffixArrayCountStore(xs_idx, ys_idx, L_max, n_x, n_y)
+        return run_cssr(
+            store, None, L_max, n_x, n_y, alpha=alpha, test=test, stats_mode=stats_mode
+        )
+    raise ValueError(
+        f"Unknown count_backend {count_backend!r}; expected 'counter' or 'suffix'."
+    )
+
+
 def infer_transducer(
     xs: Any,
     ys: Any,
@@ -165,6 +199,7 @@ def infer_transducer(
     output_alphabet: Alphabet | list | tuple | None = None,
     stats_mode: str = "correct",
     ensemble: bool | None = None,
+    count_backend: str = "counter",
     verbose: bool = False,
 ) -> EpsilonTransducer:
     """Infer an epsilon-transducer from an input/output process.
@@ -210,6 +245,15 @@ def infer_transducer(
         ensemble handling; ``False`` forces single-sequence handling (each
         element of ``xs`` / ``ys`` is a token, even tuple or word tokens that
         look like sequences). See the "Sequence input contract" traps above.
+    count_backend : {'counter', 'suffix'}, optional
+        Which history-count backend to use. ``'counter'`` (default) materializes
+        the legacy ``marg`` / ``fut`` :class:`collections.Counter` tables and is
+        the parity oracle. ``'suffix'`` answers the same count queries on demand
+        from a :class:`~transcssr.countstore.SuffixArrayCountStore` (a suffix
+        array over the ``z``-coded joint stream) without materializing any
+        Counter, trading a modest per-query cost for much lower peak memory at
+        large ``T``. The two backends yield **identical** models by
+        construction (same partition, morph counts, and state count).
     verbose : bool, optional
         If ``True``, print a one-line summary of the fitted model. Default
         ``False``.
@@ -223,7 +267,8 @@ def infer_transducer(
     ------
     ValueError
         If ``xs`` and ``ys`` differ in the number of realizations or in any
-        aligned realization's length.
+        aligned realization's length, or if ``count_backend`` is not
+        ``'counter'`` or ``'suffix'``.
     KeyError
         If a data token is absent from a provided alphabet.
     """
@@ -247,16 +292,16 @@ def infer_transducer(
                 f"{len(xi)} and {len(yi)}."
             )
 
-    marg, fut = estimate_counts(xs_idx, ys_idx, L_max)
-    epsilon, _, morph_by_state = run_cssr(
-        marg,
-        fut,
+    epsilon, _, morph_by_state = _run_cssr_backend(
+        xs_idx,
+        ys_idx,
         L_max,
         len(in_alpha),
         len(out_alpha),
-        alpha=alpha,
-        test=test,
-        stats_mode=stats_mode,
+        alpha,
+        test,
+        stats_mode,
+        count_backend,
     )
     model = build_transducer(epsilon, morph_by_state, in_alpha, out_alpha, L_max)
 
@@ -277,6 +322,7 @@ def infer_machine(
     alphabet: Alphabet | list | tuple | None = None,
     stats_mode: str = "correct",
     ensemble: bool | None = None,
+    count_backend: str = "counter",
     verbose: bool = False,
 ) -> EpsilonMachine:
     """Infer an epsilon-machine from an output-only process.
@@ -319,6 +365,14 @@ def infer_machine(
         ``False`` forces single-sequence handling (each element of ``ys`` is a
         token, even tuple or word tokens that look like sequences). See the
         "Sequence input contract" traps above.
+    count_backend : {'counter', 'suffix'}, optional
+        Which history-count backend to use. ``'counter'`` (default) materializes
+        the legacy count Counters and is the parity oracle; ``'suffix'`` answers
+        the same queries on demand from a
+        :class:`~transcssr.countstore.SuffixArrayCountStore` (here ``n_x == 1``,
+        so the ``z``-coding degenerates to the output stream), with much lower
+        peak memory at large ``T``. Both yield **identical** machines by
+        construction.
     verbose : bool, optional
         If ``True``, print a one-line summary of the fitted machine. Default
         ``False``.
@@ -338,16 +392,16 @@ def infer_machine(
     dummy_in = Alphabet([0])
     xs_idx = [tuple([0] * len(yi)) for yi in ys_idx]
 
-    marg, fut = estimate_counts(xs_idx, ys_idx, L_max)
-    epsilon, _, morph_by_state = run_cssr(
-        marg,
-        fut,
+    epsilon, _, morph_by_state = _run_cssr_backend(
+        xs_idx,
+        ys_idx,
         L_max,
         1,
         len(out_alpha),
-        alpha=alpha,
-        test=test,
-        stats_mode=stats_mode,
+        alpha,
+        test,
+        stats_mode,
+        count_backend,
     )
     # Reuse the transducer assembly (compaction + canonicalization), then wrap
     # the canonical result in an EpsilonMachine that hides the dummy input.

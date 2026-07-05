@@ -22,6 +22,8 @@ transcssr/
     __init__.py     # public API re-exports (see below)
     alphabet.py     # Alphabet: token <-> index mapping
     counting.py     # history counting (estimate_counts)
+    countstore.py   # CountStore query abstraction + Counter / suffix-array backends
+    _suffix.py      # private suffix-array engine (SuffixIndex) behind the suffix backend
     stats.py        # predictive-distribution comparison tests (chi2, G)
     cssr.py         # the CSSR algorithm, operating on index tuples
     machine.py      # EpsilonTransducer / EpsilonMachine + serialization + DOT export
@@ -61,6 +63,9 @@ model = infer_transducer(
     ensemble=None,           # None = auto-detect single-vs-ensemble by type;
                              # True = force ensemble; False = force single sequence
                              # (escape hatch for tuple-token / word-token inputs)
+    count_backend="counter", # "counter" (materialized Counters, the parity oracle)
+                             # or "suffix" (on-demand suffix-array counts; identical
+                             # models, much lower peak memory at large T)
 )
 
 machine = infer_machine(ys, L_max=3, alpha=0.001, test="chi2",
@@ -214,6 +219,29 @@ stderr message and no traceback; library bugs may still traceback.
   Legacy Stage 4 (optional morph re-estimation when `stringX`/`stringY`
   are passed) is OUT of phase-1 scope: it is unused by demos and buggy
   for `len(axs) > 1` (SPEC §6.3.2); raise `NotImplementedError`.
+- `countstore.py` / `_suffix.py`: the **count-access abstraction** (added
+  after phase 1, 2026-07). `run_cssr` reads counts only through the
+  `CountStore` interface — two per-history queries, `children(history)`
+  (occurring `(y_ind, x_ind)` child prepends, ascending order; the order is
+  load-bearing for state numbering, SPEC §6.1(1)) and `extensions(history)`
+  (`(flat_pos, count)` emission extensions, `flat_pos = n_y*ex + ey`).
+  Two backends, selected via `count_backend` on `infer_*`:
+  - `CounterCountStore` (default): the inverted indexes over the
+    materialized `marg`/`fut` Counters from `estimate_counts`. The parity
+    oracle.
+  - `SuffixArrayCountStore`: infini-gram-style (arXiv:2401.17377) on-demand
+    counting — one `SuffixIndex` (pure-numpy suffix array + lazy
+    reversed-corpus twin, sentinel-separated realizations) over the
+    product-coded joint stream `z_t = x_t*n_y + y_t` (the z-symbol IS the
+    flat morph index), plus a small precomputed tail-correction Counter
+    (`O(realizations * L_max^2)` keys) that subtracts the legacy
+    right-boundary edge effect. **Bit-exact parity with the Counter
+    backend by construction** (identical partitions, morphs, models; the
+    store-level and end-to-end equalities are tested), at `O(T)` integers
+    of memory instead of one Counter key per distinct observed window.
+    Trades a modest per-query cost for that memory; the counter backend
+    stays the default. `_suffix.py` is private; `pydivsufsort` is an
+    optional (never declared) construction fast path.
 - `predict.py`: reimplement `filter_and_predict` semantics (synchronization
   per SPEC §5.2, the legacy `'N'` placeholder becomes `None` in token
   space, `memoryless` flag) against the model class. Return the FULL
