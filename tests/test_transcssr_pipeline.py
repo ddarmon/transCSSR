@@ -42,41 +42,25 @@ def test_even_process_regression(even_sequence_pair, even_baseline):
         assert observed == expected
 
 
-@pytest.mark.xfail(reason="Integer token pipeline not yet supported")
 def test_toy_pipeline_with_integer_tokens(integer_encoded_toy):
+    """End-to-end integer-token inference via the new token-first engine.
+
+    Same data as the string toy pipeline (a->0, b->1, c->2); expectations
+    mirror the legacy string results ('N10001' becomes [None, 1, 0, 0, 0, 1]
+    in token space).
+    """
+    from transcssr import infer_transducer
+
     payload = integer_encoded_toy
-    e_symbols = list(itertools.product(payload["axs"], payload["ays"]))
-
-    word_lookup_marg, word_lookup_fut = estimate_predictive_distributions(
+    model = infer_transducer(
         payload["X"],
         payload["Y"],
-        payload["L_max"],
-        axs=payload["axs"],
-        ays=payload["ays"],
+        L_max=payload["L_max"],
+        input_alphabet=payload["axs"],
+        output_alphabet=payload["ays"],
     )
+    result = model.filter(payload["X"], payload["Y"])
 
-    epsilon, invepsilon, morph_by_state = run_transCSSR(
-        word_lookup_marg,
-        word_lookup_fut,
-        payload["L_max"],
-        payload["axs"],
-        payload["ays"],
-        e_symbols,
-        "toy_input_int",
-        "toy_output_int",
-    )
-
-    filtered_states, _, stringY_pred = filter_and_predict(
-        payload["X"],
-        payload["Y"],
-        epsilon,
-        invepsilon,
-        morph_by_state,
-        payload["axs"],
-        payload["ays"],
-        e_symbols,
-        payload["L_max"],
-    )
-
-    assert list(filtered_states) == [-1, 0, 0, 0, 0, 0]
-    assert stringY_pred == "N10001"
+    assert model.n_states == 1
+    assert list(result.states) == [-1, 0, 0, 0, 0, 0]
+    assert list(result.predictions) == [None, 1, 0, 0, 0, 1]
