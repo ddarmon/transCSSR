@@ -131,8 +131,11 @@ def _run_new(inputs, axs, ays, L_max, alpha, test, is_multiline):
     out_alpha = Alphabet(ays)
     xs, ys = _encode(inputs, in_alpha, out_alpha, is_multiline)
     marg, fut = estimate_counts(xs, ys, L_max)
+    # Parity against the legacy engine requires its (buggy) chi2 stride;
+    # stats_mode='correct' is the user-facing default (see cssr.py docstring).
     epsilon, _, morph_by_state = run_cssr(
-        marg, fut, L_max, len(axs), len(ays), alpha=alpha, test=test
+        marg, fut, L_max, len(axs), len(ays), alpha=alpha, test=test,
+        stats_mode="legacy",
     )
     return build_transducer(epsilon, morph_by_state, in_alpha, out_alpha, L_max)
 
@@ -168,6 +171,32 @@ def test_golden_parity(name):
 
     assert partition == golden["partition"], f"partition mismatch for {name}"
     assert morphs == golden["morphs"], f"morph mismatch for {name}"
+
+
+def test_stats_modes_diverge_on_stride_bug_regime():
+    """Guard the correct-vs-legacy stats_mode distinction.
+
+    The ``multiline_ensemble`` fixture (n_x=3, n_y=2) triggers the legacy
+    chi2 stride bug (SPEC §2.1). ``stats_mode='legacy'`` must reproduce the
+    golden partition (tested above); ``stats_mode='correct'`` intentionally
+    diverges here. If this test ever fails because the two modes agree,
+    the mode plumbing has probably been broken or optimized away.
+    """
+    golden = _load_golden("multiline_ensemble")
+    meta = golden["meta"]
+    inputs = _reconstruct_inputs(meta)
+    in_alpha = Alphabet(meta["axs"])
+    out_alpha = Alphabet(meta["ays"])
+    xs, ys = _encode(inputs, in_alpha, out_alpha, meta["is_multiline"])
+    marg, fut = estimate_counts(xs, ys, meta["L_max"])
+    epsilon, _, morph_by_state = run_cssr(
+        marg, fut, meta["L_max"], len(meta["axs"]), len(meta["ays"]),
+        alpha=meta["alpha"], test=meta["test_type"], stats_mode="correct",
+    )
+    model = build_transducer(epsilon, morph_by_state, in_alpha, out_alpha,
+                             meta["L_max"])
+    partition, _ = _canonicalize_model(model)
+    assert partition != golden["partition"]
 
 
 # ---------------------------------------------------------------------------

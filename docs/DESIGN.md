@@ -140,10 +140,16 @@ class EpsilonTransducer:
 
 - `stats.py`: reimplement `chisquared_test` semantics (chi2 and G) on
   morph count vectors, using the CORRECT per-input-symbol row stride
-  `len(ays)` (SPEC-core.md §2.1 documents a latent legacy stride bug,
-  `row_ind*len(axs)`; it is untriggered whenever `len(axs) in {1, len(ays)}`,
-  which covers all golden cases, so correct code still passes parity).
+  `len(ays)` (SPEC-core.md §2.1 documents a legacy stride bug,
+  `row_ind*len(axs)`, triggered whenever `len(axs) not in {1, len(ays)}`).
   Data-dependent `df`, skip rows unseen in either morph. Pure functions.
+  **Stride policy** (decided after the `multiline_ensemble` golden fixture
+  — `n_x=3, n_y=2` — turned out to TRIGGER the bug): `run_cssr` takes
+  `stats_mode='correct'|'legacy'`, defaulting to `'correct'` so users get
+  right statistics; parity tests pass `'legacy'` (a faithful buggy-stride
+  comparator kept private in `cssr.py`) because the golden fixtures encode
+  legacy behavior. The public `infer_*` entry points expose the same flag,
+  default `'correct'`. Divergence regime documented in MIGRATION.md.
 - `cssr.py`: `run_cssr(counts, L_max, n_x, n_y, alpha, test) -> partition`
   following SPEC-core.md's staged walkthrough of legacy `run_transCSSR`
   (Stage 1 homogenize → 1b prune → transient removal → Stage 3 determinize

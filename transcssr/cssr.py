@@ -22,15 +22,15 @@ re-estimation) is omitted, as are the ``.dot``/``.dat_results`` side effects of
 Stage 5. Canonical relabeling is applied only by :func:`build_transducer`,
 never inside :func:`run_cssr`.
 
-SPEC/legacy discrepancy (see :func:`compare_morphs` below): the morph
-comparison here reproduces the legacy ``chisquared_test`` row *stride* ``n_x``
-(``docs/SPEC-core.md`` §2.1 flags it as a bug; ``docs/DESIGN.md`` mandates the
-corrected ``n_y`` stride in ``transcssr.stats``). The golden fixtures were
-captured from the legacy engine, so exact parity requires the legacy stride --
-which matters only when ``n_x > 1`` and ``n_x != n_y`` (the
-``multiline_ensemble`` fixture). Per the "follow the CODE on conflicts"
-directive, ``run_cssr`` uses the legacy stride; ``transcssr.stats`` keeps the
-corrected one for its other (non-parity) consumers.
+SPEC/legacy discrepancy (see :func:`_legacy_compare_morphs` below): the legacy
+``chisquared_test`` uses row *stride* ``n_x`` (``docs/SPEC-core.md`` §2.1 flags
+it as a bug); the corrected stride is ``n_y`` (``transcssr.stats``). The two
+agree whenever ``n_x == 1`` or ``n_x == n_y`` but can produce DIFFERENT
+partitions otherwise (e.g. the ``multiline_ensemble`` golden fixture,
+``n_x=3, n_y=2``, captured from the buggy legacy engine). Policy
+(``docs/DESIGN.md``): :func:`run_cssr` defaults to ``stats_mode='correct'``
+so users get correct statistics; parity tests pass ``stats_mode='legacy'``
+to reproduce the legacy engine exactly.
 """
 
 from __future__ import annotations
@@ -43,6 +43,7 @@ import scipy.stats
 
 from .alphabet import Alphabet
 from .machine import EpsilonTransducer
+from .stats import compare_morphs as _correct_compare_morphs
 
 __all__ = ["run_cssr", "build_transducer"]
 
@@ -62,7 +63,7 @@ def _emission_symbols(n_x: int, n_y: int) -> list[tuple[int, int]]:
     return [(x_ind, y_ind) for x_ind in range(n_x) for y_ind in range(n_y)]
 
 
-def compare_morphs(
+def _legacy_compare_morphs(
     morph1: list[int] | np.ndarray,
     morph2: list[int] | np.ndarray,
     n_x: int,
@@ -81,12 +82,11 @@ def compare_morphs(
     (``n_x=3, n_y=2``), which was captured from the legacy engine and therefore
     encodes the buggy stride.
 
-    Because ``run_cssr``'s contract is exact partition parity with the legacy
-    ``run_transCSSR`` (the parity oracle / golden fixtures), this local
-    comparator reproduces the legacy stride verbatim. Per the "follow the CODE
-    on spec/legacy conflicts" directive, this is intentional: it is the only
-    way to match all five golden fixtures without editing the (correct)
-    ``stats.py``. See the module docstring and the project report for the flag.
+    This comparator exists for ``run_cssr(..., stats_mode='legacy')``, whose
+    contract is exact partition parity with the legacy ``run_transCSSR`` (the
+    parity oracle / golden fixtures). The DEFAULT ``stats_mode='correct'``
+    uses ``transcssr.stats.compare_morphs`` instead, so users get correct
+    statistics; parity tests opt into the legacy stride explicitly.
 
     Parameters and returns mirror :func:`transcssr.stats.compare_morphs`:
     returns ``(reject, pvalue)`` where ``reject`` is ``True`` when the null
@@ -344,6 +344,7 @@ def run_cssr(
     n_y: int,
     alpha: float = 0.001,
     test: str = "chi2",
+    stats_mode: str = "correct",
 ) -> tuple[Epsilon, InvEpsilon, MorphByState]:
     """Infer an epsilon-transducer partition from history counts.
 
@@ -370,6 +371,13 @@ def run_cssr(
         Significance level for the split test. Default ``0.001``.
     test : {'chi2', 'G'}, optional
         Statistic used for morph comparison. Default ``'chi2'``.
+    stats_mode : {'correct', 'legacy'}, optional
+        Which morph comparator to use. ``'correct'`` (default) uses
+        ``transcssr.stats.compare_morphs`` (mathematically correct
+        per-input-symbol stride ``n_y``). ``'legacy'`` replicates the legacy
+        ``chisquared_test`` stride bug (SPEC §2.1) for exact parity with the
+        legacy engine; the two modes agree whenever ``n_x == 1`` or
+        ``n_x == n_y`` and can produce different partitions otherwise.
 
     Returns
     -------
@@ -382,6 +390,15 @@ def run_cssr(
         ``int state -> list[int]`` morph count vector, length ``n_x * n_y``,
         indexed ``n_y * x_ind + y_ind``.
     """
+    if stats_mode == "correct":
+        compare_morphs = _correct_compare_morphs
+    elif stats_mode == "legacy":
+        compare_morphs = _legacy_compare_morphs
+    else:
+        raise ValueError(
+            f"Unknown stats_mode {stats_mode!r}; expected 'correct' or 'legacy'."
+        )
+
     e_symbols = _emission_symbols(n_x, n_y)
     n_e = len(e_symbols)
 
