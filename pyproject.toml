@@ -71,7 +71,11 @@ dev = [
 ]
 
 [tool.setuptools]
-# The token-first package plus the two legacy top-level modules, kept
-# importable for existing users (see MIGRATION.md).
+# Only the token-first package is distributed. The legacy flat modules
+# (transCSSR.py, filter_data_methods.py) are deliberately NOT shipped:
+# on case-insensitive filesystems (macOS, Windows) an installed
+# ``transCSSR.py`` and the ``transcssr/`` package collide, making
+# ``import transCSSR`` nondeterministic. The legacy engine remains
+# importable from a repo checkout (run from the repo root), where it
+# serves as the parity oracle and demo backend. See MIGRATION.md.
 packages = ["transcssr"]
-py-modules = ["transCSSR", "filter_data_methods"]

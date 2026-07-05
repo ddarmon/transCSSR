@@ -10,3 +10,6 @@ __pycache__/
 
 # uv / virtual environment (uv.lock is tracked, .venv is not)
 .venv/
+build/
+cache/
+.DS_Store

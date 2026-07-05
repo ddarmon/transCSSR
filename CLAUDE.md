@@ -73,10 +73,15 @@ python -m pytest -q`.
 
 ## Packaging
 
-`pyproject.toml` (setuptools backend --- kept because the legacy flat
-`py-modules` make setuptools the pragmatic choice; do not switch to
-`uv_build`/hatchling). Distribution name `transCSSR`, version 1.1.x.
-- `packages = ["transcssr"]` plus `py-modules = ["transCSSR", "filter_data_methods"]` (legacy surface).
+`pyproject.toml` (setuptools backend). Distribution name `transCSSR`,
+version 1.1.x.
+- `packages = ["transcssr"]` ONLY. The legacy flat modules are
+  deliberately NOT shipped: an installed `transCSSR.py` and the
+  `transcssr/` package collide on case-insensitive filesystems
+  (macOS/Windows), making `import transCSSR` nondeterministic. The
+  legacy engine is repo-checkout-only; anything importing it must run
+  from the repo root (tests do) or put the root first on `sys.path`
+  (the example scripts do, via a bootstrap block).
 - Engine deps: `numpy`, `scipy`, plus `typer` for the CLI (imported only by `cli.py`). Legacy deps are the optional `[legacy]` extra (`python-igraph`, `pandas`, `matplotlib`, `joblib`, `tqdm`).
 - Console script: `[project.scripts]` `transcssr = "transcssr.cli:app"`.
 - Dev tooling: the PEP 735 `[dependency-groups]` `dev` group = `pytest` + a self-reference to the `transCSSR[legacy]` extra (so the full/parity suite runs without duplicating the legacy dep list).
@@ -87,13 +92,13 @@ python -m pytest -q`.
 ## Directory structure
 
 - `transcssr/` --- token-first package (primary engine).
-- `transCSSR.py`, `filter_data_methods.py` --- legacy flat modules (parity oracle + demo backend).
+- `transCSSR.py`, `filter_data_methods.py` --- legacy flat modules (parity oracle + demo backend; repo-only, not installed).
 - `docs/` --- `DESIGN.md`, `SPEC-core.md` (the contracts).
 - `tests/` --- unit + parity tests; `tests/golden/` captured fixtures.
 - `scripts/capture_golden.py` --- regenerates golden fixtures from the legacy engine.
 - `data/` --- datasets for demos and quickstarts.
-- `demo_*.py`, `demo-and-experimental-scripts/`, `simulation-codes/` --- legacy demos and data generation.
-- `transCSSR_results/` --- generated `.dot` / analysis outputs (gitignored; some files tracked historically).
+- `examples/` --- legacy-engine demos + notebooks (run from repo root); `examples/experimental/` research scripts; `examples/simulation*/` data-generation code for `data/`.
+- `transCSSR_results/` --- generated `.dot` / analysis outputs, hardcoded output dir of the legacy engine (gitignored; some files tracked historically). Retires with the legacy engine.
 - `legacy_code/` --- Python 2 compatible legacy implementation.
 
 ## Conventions

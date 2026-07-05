@@ -4,8 +4,17 @@ Version 1.1 introduces a new, token-first engine in the `transcssr`
 package. It works with sequences of *arbitrary hashable tokens* (integer
 ids from an NLP tokenizer, strings, tuples, ...), needs only `numpy` and
 `scipy`, and exposes a small class-based API. The old flat `transCSSR.py`
-module is **unchanged and still importable** --- existing code keeps
-working --- and now serves as the parity oracle for the new engine.
+module is **unchanged and still importable from a repo checkout** ---
+run your code from the repo root (or put the repo root first on
+`sys.path`) and existing imports keep working. It now serves as the
+parity oracle for the new engine.
+
+> **Note:** as of 1.1.0 the legacy modules are *not* included in the
+> installed distribution. Shipping a top-level `transCSSR.py` next to
+> the `transcssr/` package makes `import transCSSR` nondeterministic on
+> case-insensitive filesystems (macOS, Windows). If you depend on the
+> legacy API from an installed package, stay on 1.0.x or work from a
+> checkout.
 
 This document maps the old API onto the new one, lists what has and has
 not been ported, and documents the behavioral differences honestly.

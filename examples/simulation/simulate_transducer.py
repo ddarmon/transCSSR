@@ -46,7 +46,7 @@ Xt_name = 'coinflip'
 
 Yt_name = '{}-{}'.format(Xt_name, trans_name)
 
-Xt = open('../data/{}.dat'.format(Xt_name)).readline().strip()
+Xt = open('../../data/{}.dat'.format(Xt_name)).readline().strip()
 
 Yt = '1'
 
@@ -64,4 +64,4 @@ for t in range(L, len(Xt)):
 	else:
 		Yt += '0'
 
-open('../data/{}.dat'.format(Yt_name), 'w').write(Yt)
+open('../../data/{}.dat'.format(Yt_name), 'w').write(Yt)

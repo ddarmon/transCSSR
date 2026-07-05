@@ -50,7 +50,7 @@ uv sync --group dev     # add the full test/dev toolchain (see Testing)
 ```
 
 Run anything inside the managed environment with `uv run`, e.g.
-`uv run python demo_CSSR.py`.
+`uv run python examples/demo_CSSR.py` (from the repo root).
 
 Prefer `uv pip` or plain `pip`? Editable installs work too:
 
@@ -286,14 +286,19 @@ the behavioral differences, and what remains legacy-only for now.
 
 ### Demo scripts (legacy engine)
 
-The demo scripts exercise the **legacy** engine and require the
-`[legacy]` extra:
+The demo scripts in `examples/` exercise the **legacy** engine and
+require the `[legacy]` extra. Run them from the repo root (the legacy
+engine writes into `transCSSR_results/` relative to the working
+directory):
 
--   `demo_transCSSR.py`: end-to-end inference of an epsilon-transducer and
-    prediction, including plots.
--   `demo_CSSR.py`: epsilon-machine inference and prediction.
--   `demo_computational_mechanics_bootstrap.py`: bootstrapping to assess
-    the statistical reliability of inferred models.
+-   `examples/demo_transCSSR.py`: end-to-end inference of an
+    epsilon-transducer and prediction, including plots.
+-   `examples/demo_CSSR.py`: epsilon-machine inference and prediction.
+-   `examples/demo_computational_mechanics_bootstrap.py`: bootstrapping
+    to assess the statistical reliability of inferred models.
+
+See `examples/README.md` for the experimental scripts and the
+data-generation code behind the datasets in `data/`.
 
 ### Data formats (legacy engine)
 
@@ -326,13 +331,15 @@ type, with no `is_multiline` flag.)
 -   `transcssr/`: the token-first package (primary interface). Modules:
     `alphabet`, `counting`, `stats`, `cssr`, `machine`, `predict`, `api`.
 -   `transCSSR.py`, `filter_data_methods.py`: the legacy flat modules
-    (parity oracle + demo backend).
+    (parity oracle + demo backend). Importable from a repo checkout only;
+    they are deliberately **not** part of the installed distribution
+    (see MIGRATION.md).
 -   `docs/DESIGN.md`, `docs/SPEC-core.md`: the architectural and
     behavioral contracts for the rewrite.
 -   `tests/`: unit and parity tests, with captured legacy outputs in
     `tests/golden/`.
--   `demo_*.py`, `simulation-codes/`: legacy demo and data-generation
-    scripts.
+-   `examples/`: legacy-engine demos and notebooks, experimental
+    research scripts, and the data-generation code for `data/`.
 -   `data/`: datasets used by the demos and quickstarts.
 
 ## Testing
