@@ -1,3 +1,9 @@
 *.dat
 *.pyc
 *checkpoint.ipynb
+
+# Generated artifacts
+transCSSR_results/
+__pycache__/
+*.egg-info/
+.pytest_cache/

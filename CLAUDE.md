@@ -1,0 +1,86 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Overview
+
+transCSSR implements the Causal State Splitting Reconstruction (CSSR) algorithm for inferring epsilon-machines and epsilon-transducers from discrete-valued, discrete-time input/output systems. As of version 1.1 the codebase has two engines:
+
+- **`transcssr/` (primary, token-first).** The current engine. Sequences of arbitrary hashable tokens (integer tokenizer ids, strings, tuples, 1-d numpy arrays) are first-class inputs. Depends only on `numpy` and `scipy`. This is what new code should use.
+- **`transCSSR.py` + `filter_data_methods.py` (legacy).** The original character-first flat modules, kept importable and **unchanged**. They serve as the **parity oracle** for the new engine and still back the demo scripts. Needs the extra deps (`python-igraph`, `pandas`, `matplotlib`, `joblib`, `tqdm`).
+
+Nothing in `transcssr/` may import from the legacy modules; only tests import both.
+
+## Contracts (read these before changing behavior)
+
+- **`docs/DESIGN.md`** --- architectural contract for the token-first package: package layout, public API, model classes, scope policy (what is in / out of phase 1).
+- **`docs/SPEC-core.md`** --- behavioral contract: the exact semantics of the legacy engine that the new engine must reproduce. Where DESIGN and SPEC conflict on algorithm behavior, SPEC wins. §6.3 is the legacy bug list; §2.1 is the chi2 stride bug.
+
+## The token-first package (`transcssr/`)
+
+Modules and responsibilities:
+
+- `alphabet.py` --- `Alphabet`: immutable token <-> index bijection.
+- `counting.py` --- `estimate_counts`: history counting (legacy `counting_method=0`).
+- `stats.py` --- `compare_morphs`: chi2 / G morph comparison, correct `len(ays)` stride.
+- `cssr.py` --- `run_cssr` / `build_transducer`: the state-splitting + determinization algorithm on index tuples. Order-dependence is semantics; legacy iteration order is replicated exactly (see the module docstring and its `LEGACY QUIRK` comments).
+- `machine.py` --- `EpsilonTransducer` / `EpsilonMachine`: model classes, JSON serialization, DOT export.
+- `predict.py` --- `filter_and_predict` / `FilterResult`: filtering and MAP prediction.
+- `api.py` --- `infer_transducer` / `infer_machine`: public inference entry points (normalize -> encode -> count -> CSSR -> build model).
+
+Public API:
+
+```python
+from transcssr import Alphabet, EpsilonMachine, EpsilonTransducer, infer_machine, infer_transducer
+model = infer_transducer(xs, ys, L_max=3, alpha=0.001, test="chi2")
+machine = infer_machine(ys, L_max=3)
+result = model.filter(xs, ys)   # .states, .predictions, .prediction_probs (T, n_y)
+model.to_json(path); EpsilonTransducer.from_json(path); model.to_dot(path)
+```
+
+## stats_mode policy
+
+Morph comparison has two modes, both exposed on `infer_*` and `run_cssr`:
+
+- **`stats_mode="correct"` (default)** --- the mathematically correct per-input-symbol stride `len(ays)`. Users get correct statistics.
+- **`stats_mode="legacy"`** --- reproduces the legacy `chisquared_test` stride bug (`row_ind*len(axs)`, SPEC §2.1) for exact partition parity with the legacy engine.
+
+The two modes agree whenever `n_x` is `1` or equals `n_y`; they can differ (different partition, not just numbering) when `n_x` is neither. The golden fixtures were captured from the legacy engine and therefore encode the buggy stride, so **parity tests pass `stats_mode="legacy"`**.
+
+## Testing
+
+Run the full suite in the project environment:
+
+```bash
+mamba run -n transcssr-int python -m pytest -q
+```
+
+- Unit tests: `tests/test_alphabet.py`, `test_counting.py`, `test_stats.py`, `test_machine.py`, etc.
+- Parity gate: `tests/test_cssr.py` and `tests/test_predict.py` compare the new engine against the legacy oracle (partition, morphs, filtered states, probabilities, predictions).
+- Executable docs: `tests/test_readme_examples.py` mirrors the two README quickstarts verbatim --- keep them in sync when editing either.
+- Golden fixtures: `tests/golden/*.json` are captured legacy outputs; regenerate with `scripts/capture_golden.py` (do not hand-edit).
+
+## Packaging
+
+`pyproject.toml` (setuptools backend). Distribution name `transCSSR`, version 1.1.x.
+- `packages = ["transcssr"]` plus `py-modules = ["transCSSR", "filter_data_methods"]` (legacy surface).
+- Engine deps: `numpy`, `scipy`. Legacy deps are the optional `[legacy]` extra (`python-igraph`, `pandas`, `matplotlib`, `joblib`, `tqdm`).
+- Python `>=3.10`.
+- Editable install: `pip install -e .` (or `pip install -e ".[legacy]"` for demos).
+
+## Directory structure
+
+- `transcssr/` --- token-first package (primary engine).
+- `transCSSR.py`, `filter_data_methods.py` --- legacy flat modules (parity oracle + demo backend).
+- `docs/` --- `DESIGN.md`, `SPEC-core.md` (the contracts).
+- `tests/` --- unit + parity tests; `tests/golden/` captured fixtures.
+- `scripts/capture_golden.py` --- regenerates golden fixtures from the legacy engine.
+- `data/` --- datasets for demos and quickstarts.
+- `demo_*.py`, `demo-and-experimental-scripts/`, `simulation-codes/` --- legacy demos and data generation.
+- `transCSSR_results/` --- generated `.dot` / analysis outputs (gitignored; some files tracked historically).
+- `legacy_code/` --- Python 2 compatible legacy implementation.
+
+## Conventions
+
+- Token-first package: numpy/scipy only, Python >= 3.10, full type hints, numpydoc docstrings, no prints in library code (warnings/exceptions instead), determinism everywhere (no wall-clock, no randomness, no unordered iteration).
+- Legacy modules: do not modify to change behavior; they are the parity oracle.
