@@ -25,7 +25,8 @@ transcssr/
     stats.py        # predictive-distribution comparison tests (chi2, G)
     cssr.py         # the CSSR algorithm, operating on index tuples
     machine.py      # EpsilonTransducer / EpsilonMachine + serialization + DOT export
-    predict.py      # filtering / prediction with a fitted model
+    predict.py      # filtering / prediction with a fitted model (hard filter)
+    msp.py          # mixed-state-presentation belief filtering + log-loss scoring
     api.py          # infer_transducer / infer_machine (public inference entry points)
     cli.py          # `transcssr` console script (typer; imported only here)
 tests/
