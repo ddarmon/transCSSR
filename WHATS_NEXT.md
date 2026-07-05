@@ -1,17 +1,20 @@
 # WHAT'S NEXT
 
 Tracker for the remaining work after the token-first migration
-(branch `transcssr-int`, 2026-07). See `MIGRATION.md` for what is already
-ported and how the new engine differs from legacy; see `docs/DESIGN.md`
-and `docs/SPEC-core.md` for the contracts that govern further porting.
+(branch `feature/token-first-engine`, 2026-07; PR #4 → `main`). See
+`MIGRATION.md` for what is already ported and how the new engine differs
+from legacy; see `docs/DESIGN.md` and `docs/SPEC-core.md` for the
+contracts that govern further porting.
 
 ## Where things stand
 
 The core inference path (counting → CSSR → model → filter/predict, plus
 JSON serialization and DOT export) is fully ported to the token-first
-`transcssr/` package, with exact-parity tests against the legacy engine
-(144 tests passing). Everything below is the legacy-only "analysis tail"
-in `transCSSR.py`, plus infrastructure follow-ups.
+`transcssr/` package, with exact-parity tests against the legacy engine,
+plus mixed-state-presentation prediction/scoring (`transcssr/msp.py`) and
+large-alphabet performance work (282 tests passing). Everything below is
+the remaining legacy-only "analysis tail" in `transCSSR.py`, plus
+infrastructure follow-ups.
 
 The porting pattern that worked, for reuse on each item below:
 spec the legacy semantics first (extend `docs/SPEC-core.md`) → capture
@@ -26,9 +29,9 @@ bugs listed in SPEC §6.3 rather than replicate them (the parity-quirk
 policy applies only to the already-ported partition algorithm).
 
 - [ ] **Simulation** — `simulate_eM`, `simulate_eM_fast`, `simulate_eT`.
-      Needs a stationary-distribution utility on the model classes
-      (currently computed ad hoc from DOT-parsed matrices). Natural first
-      port: self-contained, easy to test (simulate → re-infer → compare
+      The stationary-distribution utility it needs now exists
+      (`transcssr.msp.stationary_distribution`). Natural first port:
+      self-contained, easy to test (simulate → re-infer → compare
       partitions).
 - [ ] **Model-file compatibility** — a one-time converter from legacy
       `.dot` machine/transducer files to `transcssr-model-v1` JSON, so
@@ -37,16 +40,17 @@ policy applies only to the already-ported partition algorithm).
 - [ ] **Information / complexity measures** — `compute_ict_measures`
       (statistical complexity, entropy rate, E, etc.),
       `compute_conditional_measures`, `generate_word_probs_eM`,
-      `generate_wordmap`, `map_words`. Depends on stationary
-      distributions + mixed-state machinery.
-- [ ] **Presynchronization & mixed-state prediction** —
-      `predict_presynch_eM`, `predict_presynch_eT`,
-      `filter_and_pred_probs` (+ `_nonsynch`, `_breakforbidden` variants),
-      `compute_mixed_transition_matrix`,
-      `compute_channel_states_distribution`,
-      `compute_output_transition_matrix`. The largest and subtlest chunk;
-      spec it before touching it. Known legacy landmines: binary-output
-      assumptions and the `scipy.stats.mode` API drift (SPEC §6.3.10).
+      `generate_wordmap`, `map_words`. The stationary-distribution and
+      mixed-state machinery it depends on is now in `transcssr/msp.py`.
+- [x] **Presynchronization & mixed-state prediction** — DONE 2026-07-05
+      as `transcssr/msp.py`: `stationary_distribution`,
+      `mixed_transition_matrix`, `msp_filter` / `msp_filter_machine`
+      (ports `filter_and_pred_probs` and subsumes `predict_presynch_eM` /
+      `predict_presynch_eT`), plus a `log_loss` held-out scorer.
+      Float-tolerance parity vs the legacy oracle (~1e-16); documented
+      termination-guard deviation for globally-impossible symbols.
+      NOT ported (decide whether they're needed): the `_nonsynch` and
+      `_breakforbidden` variants, `compute_output_transition_matrix`.
 - [ ] **Model selection & uncertainty** — `choose_L_eM`,
       `computational_mechanics_bootstrap`. Port after simulation (the
       bootstrap needs it).
@@ -55,10 +59,21 @@ policy applies only to the already-ported partition algorithm).
 
 ## 2. Engine follow-ups (not porting)
 
-- [ ] **Performance profiling** on large tokenized corpora (the original
-      motivation was NLP-tokenizer input; vocabulary sizes of 10k+ and
-      long sequences are untested at scale). Candidate optimizations:
-      vectorized counting, morph-vector caching in Stage 1.
+- [x] **Vectorized counting + Stage-1 hot path** — DONE 2026-07-05:
+      adaptive vectorized `estimate_counts` (exact Counter parity),
+      occurrence/extension indexes + numpy morphs in `run_cssr`,
+      vectorized `compare_morphs` (7.9–10.8× primitives at n_y=1024);
+      partitions bit-identical in both stats modes.
+- [ ] **Scale walls that remain** (for NLP-tokenizer corpora, T ≈ 10^8,
+      vocab 1k+): (a) Counter materialization memory in counting — a
+      suffix-array/FM-index `CountStore` backend (infini-gram style,
+      arXiv:2401.17377) would replace materialized counts with on-demand
+      range queries and enable adaptive history depth; documented
+      new-engine-only (edge-effect semantics differ from legacy).
+      (b) The O(#states) existing-state matching loop in Stage 1 —
+      order-dependent semantics, so any approximate matching must be an
+      opt-in, clearly-non-parity mode. Validate on real corpora first
+      (structured data over-splits far less than the random benchmarks).
 - [ ] **`memoryless=True` filtering semantics** — currently a faithful
       structural port that never synchronizes on models trained with real
       outputs (documented in `transcssr/predict.py`). Decide: implement
@@ -78,10 +93,13 @@ policy applies only to the already-ported partition algorithm).
 - [ ] **CI** — GitHub Actions: `uv sync --group dev` + full pytest
       (the parity gate runs on every push). Consider a matrix over
       Python 3.10–3.13.
-- [ ] **Open the PR** — `transcssr-int` → `master` (branch is
-      merge-ready; PR intentionally not opened yet).
-- [ ] **Release** — tag v1.1.0 after merge; decide whether to publish to
-      PyPI (name `transCSSR` is currently unclaimed there — verify).
+- [x] **Open the PR** — DONE 2026-07-05: branch renamed
+      `transcssr-int` → `feature/token-first-engine`, default branch
+      renamed `master` → `main`, PR #4 opened
+      (https://github.com/ddarmon/transCSSR/pull/4).
+- [ ] **Release** — tag v1.1.0 after PR #4 merges; decide whether to
+      publish to PyPI (name `transCSSR` verified unclaimed as of
+      2026-07-05: pypi.org returns 404 for the project).
 - [ ] **Legacy retirement** — after the analysis tail is ported and has
       survived a release cycle: move `transCSSR.py` +
       `filter_data_methods.py` to `legacy_code/`, drop the `[legacy]`
