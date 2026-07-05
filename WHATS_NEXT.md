@@ -64,16 +64,31 @@ policy applies only to the already-ported partition algorithm).
       occurrence/extension indexes + numpy morphs in `run_cssr`,
       vectorized `compare_morphs` (7.9–10.8× primitives at n_y=1024);
       partitions bit-identical in both stats modes.
-- [ ] **Scale walls that remain** (for NLP-tokenizer corpora, T ≈ 10^8,
-      vocab 1k+): (a) Counter materialization memory in counting — a
-      suffix-array/FM-index `CountStore` backend (infini-gram style,
-      arXiv:2401.17377) would replace materialized counts with on-demand
-      range queries and enable adaptive history depth; documented
-      new-engine-only (edge-effect semantics differ from legacy).
-      (b) The O(#states) existing-state matching loop in Stage 1 —
-      order-dependent semantics, so any approximate matching must be an
-      opt-in, clearly-non-parity mode. Validate on real corpora first
-      (structured data over-splits far less than the random benchmarks).
+- [x] **Scale wall (a): Counter materialization memory** — DONE
+      2026-07-05 on `feature/optimizations`: `CountStore` abstraction
+      (`transcssr/countstore.py`) + suffix-array backend
+      (`SuffixArrayCountStore` over `transcssr/_suffix.py`,
+      infini-gram-style, arXiv:2401.17377), selected via
+      `count_backend="suffix"` on `infer_*`. Better than planned: a
+      precomputed edge-effect tail-correction table makes it
+      **bit-exact** with the Counter backend (not a documented
+      deviation), verified store-level and end-to-end in
+      `tests/test_suffix_countstore.py`. O(T) integers instead of
+      per-window Counter keys (benchmark: peak RSS 232 vs 404 MB at
+      T=1e6, n_y=8; count structure 0.8 vs 36.7 MB at n_y=64); trades a
+      modest per-query cost, so `counter` stays the default. Also
+      unlocks adaptive history depth later (no L_max in the memory
+      equation).
+- [ ] **Scale wall (b): the O(#states) existing-state matching loop in
+      Stage 1** — order-dependent semantics, so any approximate matching
+      must be an opt-in, clearly-non-parity mode. E1 pilot evidence
+      (2026-07-05, `examples/experimental/e1_pilot.py`: 1M chars of
+      text8, L=3): real English yields **3,684 states** and inference is
+      dominated by this loop (~212 s), so the wall binds on natural
+      language too — this is now the top engineering target for scaling
+      E1/E2, alongside a held-out backoff policy (1.47% zero-probability
+      events on 200k held-out chars; `log_loss` reports, deliberately
+      does not smooth).
 - [ ] **`memoryless=True` filtering semantics** — currently a faithful
       structural port that never synchronizes on models trained with real
       outputs (documented in `transcssr/predict.py`). Decide: implement
