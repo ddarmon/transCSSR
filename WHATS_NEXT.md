@@ -82,13 +82,14 @@ policy applies only to the already-ported partition algorithm).
 - [ ] **Scale wall (b): the O(#states) existing-state matching loop in
       Stage 1** — order-dependent semantics, so any approximate matching
       must be an opt-in, clearly-non-parity mode. E1 pilot evidence
-      (2026-07-05, `examples/experimental/e1_pilot.py`: 1M chars of
-      text8, L=3): real English yields **3,684 states** and inference is
-      dominated by this loop (~212 s), so the wall binds on natural
-      language too — this is now the top engineering target for scaling
-      E1/E2, alongside a held-out backoff policy (1.47% zero-probability
-      events on 200k held-out chars; `log_loss` reports, deliberately
-      does not smooth).
+      (2026-07-05, now in the transcssr-experiments repo,
+      github.com/ddarmon/transcssr-experiments: 1M chars of text8, L=3):
+      real English yields **3,684 states** and inference is dominated by
+      this loop (~212 s), so the wall binds on natural language too —
+      this is now the top engineering target for scaling E1/E2,
+      alongside a held-out backoff policy (1.47% zero-probability events
+      on 200k held-out chars; `log_loss` reports, deliberately does not
+      smooth).
 - [ ] **`memoryless=True` filtering semantics** — currently a faithful
       structural port that never synchronizes on models trained with real
       outputs (documented in `transcssr/predict.py`). Decide: implement
@@ -127,27 +128,14 @@ policy applies only to the already-ported partition algorithm).
 
 ## 4. Research thread: CSSR on natural language (the E-experiments)
 
-Decided 2026-07-05: **skip the standalone E0 feasibility study** (the
-perf pass + suffix-array backend + E1 pilot already located the walls
-empirically) and go straight to scaling the E1 pilot. Next session
-starts here.
+The research thread — E1 scale-up, the mini-E2 vocab ladder, and the
+experiment log — now lives in the private repo
+github.com/ddarmon/transcssr-experiments. This section keeps only the
+items that are package (not experiment) work.
 
-- [ ] **E1 scale-up** — extend `examples/experimental/e1_pilot.py`
-      (or promote it to a proper experiment script): text8 at 10M chars
-      and beyond, L = 4–5, `count_backend="suffix"` for the memory
-      headroom. Watch the two known pressure points: the O(#states)
-      Stage-1 matching loop (3,684 states / 212 s at 1M chars, L=3 —
-      expect superlinear growth; measure the state-count-vs-T curve, it
-      is also the E5 scientific result) and held-out zero-probability
-      events (1.47% at 1M — needs an explicit backoff policy, e.g.
-      interpolate MSP predictions with the longest-suffix empirical
-      distribution; add to the scorer as an OPTION, `log_loss` itself
-      stays unsmoothed).
-- [ ] **Mini-E2 vocab ladder on the same script** — a `--vocab` option
-      (tiny BPE or top-V words + char fallback) at n_y ∈ {27, 256,
-      1024}, reporting held-out **bits per byte** (the only fair
-      cross-tokenization metric). Prediction on record: U-shaped or
-      worsening in vocab; char level ~2.4 bpc measured.
+Decided 2026-07-05: **skip the standalone E0 feasibility study** and go
+straight to scaling the E1 pilot (details in transcssr-experiments).
+
 - [ ] **Simulation port** (`simulate_eM` etc., see §1) — no longer
       gated on an E0 study, but still wanted for recovery sanity checks
       and the bootstrap; cheap, self-contained.
