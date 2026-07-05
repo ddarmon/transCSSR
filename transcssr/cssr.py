@@ -49,7 +49,7 @@ __all__ = ["run_cssr", "build_transducer"]
 
 Epsilon = dict[History, int]
 InvEpsilon = dict[int, dict[History, bool]]
-MorphByState = dict[int, list[int]]
+MorphByState = dict[int, np.ndarray]
 
 
 def _emission_symbols(n_x: int, n_y: int) -> list[tuple[int, int]]:
@@ -380,8 +380,8 @@ def run_cssr(
     invepsilon : dict
         ``int state -> {History: True}`` inverse partition (insertion-ordered).
     morph_by_state : dict
-        ``int state -> list[int]`` morph count vector, length ``n_x * n_y``,
-        indexed ``n_y * x_ind + y_ind``.
+        ``int state -> numpy.ndarray`` (int64) morph count vector, length
+        ``n_x * n_y``, indexed ``n_y * x_ind + y_ind``.
     """
     if stats_mode == "correct":
         compare_morphs = _correct_compare_morphs
@@ -395,6 +395,53 @@ def run_cssr(
     e_symbols = _emission_symbols(n_x, n_y)
     n_e = len(e_symbols)
 
+    # -- Precomputed occurrence / extension indexes. ----------------------
+    # Built in one pass each over ``marg`` and ``fut`` so that Stage 1 iterates
+    # only the children that actually occur, and every dense morph is assembled
+    # by scattering the observed emission extensions into a zeroed vector in
+    # O(support) time instead of ``n_x * n_y`` dict lookups.
+    #
+    # ``occ_children[(hx, hy)]`` -> the ``(y_ind, x_ind)`` child prepends of
+    # history ``(hx, hy)`` that occur, i.e. for which some next input ``ax2``
+    # has ``marg[((x_ind,) + hx + (ax2,), (y_ind,) + hy)] != 0``. A ``marg`` key
+    # ``(mx, my)`` with ``len(mx) >= 2`` is exactly such an occurrence of the
+    # child ``((mx[0],) + mx[1:-1], (my[0],) + my[1:])`` of history
+    # ``(mx[1:-1], my[1:])``, so we invert the marg keys directly. The child
+    # generation order is output-outer / input-inner (legacy
+    # ``for ay: for ax:``), which fixes new-state numbering (SPEC §6.1(1));
+    # iterating the occurring ``(y_ind, x_ind)`` pairs in ``(y_ind, x_ind)``
+    # sorted order is equivalent because non-occurring children only `continue`.
+    _occ: dict[History, set[tuple[int, int]]] = defaultdict(set)
+    for (mx, my), count in marg.items():
+        if count == 0 or len(mx) < 2:
+            continue
+        history = (mx[1:-1], my[1:])
+        _occ[history].add((my[0], mx[0]))
+    occ_children: dict[History, list[tuple[int, int]]] = {
+        hist: sorted(pairs) for hist, pairs in _occ.items()
+    }
+
+    # ``fut_by_history[(hx, hy)]`` -> list of ``(flat_pos, count)`` where a
+    # length-``L+1`` ``fut`` key ``(fx, fy)`` extends history ``(fx[:-1],
+    # fy[:-1])`` by emission ``(fx[-1], fy[-1])`` at flat morph index
+    # ``n_y * fx[-1] + fy[-1]``. Each ``(ex, ey)`` occurs at most once per
+    # history (unique ``fut`` keys), so scattering with ``=`` reproduces the
+    # dense ``[fut[...] for ex, ey in e_symbols]`` vector exactly.
+    fut_by_history: dict[History, list[tuple[int, int]]] = defaultdict(list)
+    for (fx, fy), count in fut.items():
+        if count == 0 or len(fx) == 0:
+            continue
+        history = (fx[:-1], fy[:-1])
+        pos = n_y * fx[-1] + fy[-1]
+        fut_by_history[history].append((pos, count))
+
+    def _dense_morph(history: History) -> np.ndarray:
+        """Dense length-``n_e`` int64 morph of ``history`` (O(observed support))."""
+        m = np.zeros(n_e, dtype=np.int64)
+        for pos, count in fut_by_history.get(history, ()):
+            m[pos] = count
+        return m
+
     epsilon: Epsilon = {}
     invepsilon: InvEpsilon = defaultdict(dict)
     morph_by_state: MorphByState = {}
@@ -404,7 +451,7 @@ def run_cssr(
     null_history: History = ((), ())
     epsilon[null_history] = 0
     invepsilon[0][null_history] = True
-    morph_by_state[0] = [fut[((ex,), (ey,))] for ex, ey in e_symbols]
+    morph_by_state[0] = _dense_morph(null_history)
     num_states = 1
 
     # -- Stage 1: homogenize / split. -------------------------------------
@@ -420,79 +467,68 @@ def run_cssr(
                 # Child generation order: output-outer, input-inner
                 # (legacy `for ay in ays: for ax in axs:`); this fixes the
                 # order in which new states are numbered (SPEC §6.1(1)).
-                for y_ind in range(n_y):
-                    for x_ind in range(n_x):
-                        new_history: History = (
-                            (x_ind,) + history[0],
-                            (y_ind,) + history[1],
-                        )
-                        # Occurrence test: does this child ever appear on any
-                        # next input? (LEGACY QUIRK, SPEC §6.3.5: the inner
-                        # `for ax` shadows the outer input loop var; harmless
-                        # because new_history is already fixed.)
-                        does_not_occur = True
-                        for ax2 in range(n_x):
-                            if marg[(new_history[0] + (ax2,), new_history[1])] != 0:
-                                does_not_occur = False
-                        if does_not_occur:
-                            continue
+                # ``occ_children`` supplies exactly the children that occur, in
+                # ``(y_ind, x_ind)`` sorted order -- equivalent to the legacy
+                # double loop because non-occurring children only `continue`.
+                # (LEGACY QUIRK, SPEC §6.3.5: the legacy occurrence test's inner
+                # `for ax` shadows the outer input loop var; harmless because
+                # ``new_history`` is already fixed, and it is subsumed here by
+                # the precomputed marg-key occurrence index.)
+                for y_ind, x_ind in occ_children.get(history, ()):
+                    new_history: History = (
+                        (x_ind,) + history[0],
+                        (y_ind,) + history[1],
+                    )
 
-                        morph_by_history = [
-                            fut[(new_history[0] + (ex,), new_history[1] + (ey,))]
-                            for ex, ey in e_symbols
-                        ]
-                        reject, _ = compare_morphs(
-                            morph_by_history,
-                            morph_by_state[state],
-                            n_x,
-                            n_y,
-                            alpha=alpha,
-                            test=test,
-                        )
-                        if reject:
-                            is_matching_state = False
-                            if num_states != 1:
-                                cur_best_pvalue = -np.inf
-                                cur_best_state = -1
-                                for altstate in list(invepsilon.keys()):
-                                    if altstate == state:
-                                        continue
-                                    _, pvalue = compare_morphs(
-                                        morph_by_history,
-                                        morph_by_state[altstate],
-                                        n_x,
-                                        n_y,
-                                        alpha=alpha,
-                                        test=test,
-                                    )
-                                    # Strict `>`: first state wins ties, in
-                                    # insertion order (SPEC §6.1(2)).
-                                    if pvalue > alpha and pvalue > cur_best_pvalue:
-                                        cur_best_pvalue = pvalue
-                                        cur_best_state = altstate
-                                if cur_best_state != -1:
-                                    is_matching_state = True
-                                    epsilon[new_history] = cur_best_state
-                                    invepsilon[cur_best_state][new_history] = True
-                                    dst = morph_by_state[cur_best_state]
-                                    for k in range(n_e):
-                                        dst[k] += morph_by_history[k]
-                            if not is_matching_state:
-                                epsilon[new_history] = num_states
-                                invepsilon[num_states][new_history] = True
-                                morph_by_state[num_states] = list(morph_by_history)
-                                num_states += 1
-                        else:
-                            # Do not reject: child belongs to its parent state.
-                            # Parent morph mutates mid-pass, so later children
-                            # are tested against the updated parent (SPEC
-                            # §6.1(3)).
-                            all_distinct = False
-                            epsilon[new_history] = state
-                            invepsilon[state][new_history] = True
-                            dst = morph_by_state[state]
-                            for k in range(n_e):
-                                dst[k] += morph_by_history[k]
+                    morph_by_history = _dense_morph(new_history)
+                    reject, _ = compare_morphs(
+                        morph_by_history,
+                        morph_by_state[state],
+                        n_x,
+                        n_y,
+                        alpha=alpha,
+                        test=test,
+                    )
+                    if reject:
+                        is_matching_state = False
+                        if num_states != 1:
+                            cur_best_pvalue = -np.inf
+                            cur_best_state = -1
+                            for altstate in list(invepsilon.keys()):
+                                if altstate == state:
+                                    continue
+                                _, pvalue = compare_morphs(
+                                    morph_by_history,
+                                    morph_by_state[altstate],
+                                    n_x,
+                                    n_y,
+                                    alpha=alpha,
+                                    test=test,
+                                )
+                                # Strict `>`: first state wins ties, in
+                                # insertion order (SPEC §6.1(2)).
+                                if pvalue > alpha and pvalue > cur_best_pvalue:
+                                    cur_best_pvalue = pvalue
+                                    cur_best_state = altstate
+                            if cur_best_state != -1:
+                                is_matching_state = True
+                                epsilon[new_history] = cur_best_state
+                                invepsilon[cur_best_state][new_history] = True
+                                morph_by_state[cur_best_state] += morph_by_history
+                        if not is_matching_state:
+                            epsilon[new_history] = num_states
+                            invepsilon[num_states][new_history] = True
+                            morph_by_state[num_states] = morph_by_history.copy()
+                            num_states += 1
+                    else:
+                        # Do not reject: child belongs to its parent state.
+                        # Parent morph mutates mid-pass, so later children
+                        # are tested against the updated parent (SPEC
+                        # §6.1(3)).
+                        all_distinct = False
+                        epsilon[new_history] = state
+                        invepsilon[state][new_history] = True
+                        morph_by_state[state] += morph_by_history
                 if all_distinct:
                     # Every child of `history` split off elsewhere; drop it.
                     invepsilon[state].pop(history)
@@ -504,13 +540,7 @@ def run_cssr(
                         # parent's own child counts back out of the state
                         # morph. The author flagged this bookkeeping as a
                         # suspected over/under-count source; replicate as-is.
-                        old_morph = [
-                            fut[(history[0] + (ex,), history[1] + (ey,))]
-                            for ex, ey in e_symbols
-                        ]
-                        dst = morph_by_state[state]
-                        for k in range(n_e):
-                            dst[k] -= old_morph[k]
+                        morph_by_state[state] -= _dense_morph(history)
 
     # -- Stage 1b: prune histories shorter than L_max - 1. -----------------
     for hist in list(epsilon.keys()):
@@ -518,12 +548,7 @@ def run_cssr(
             state = epsilon[hist]
             # LEGACY QUIRK (SPEC §3 Stage 1b, §6.3.9): subtract the pruned
             # history's child morph out of the state; replicate as-is.
-            hist_morph = [
-                fut[(hist[0] + (ex,), hist[1] + (ey,))] for ex, ey in e_symbols
-            ]
-            dst = morph_by_state[state]
-            for k in range(n_e):
-                dst[k] -= hist_morph[k]
+            morph_by_state[state] -= _dense_morph(hist)
             epsilon.pop(hist)
             invepsilon[state].pop(hist)
     for state in list(invepsilon.keys()):
@@ -594,21 +619,15 @@ def run_cssr(
                 if len(to_split) > 0:
                     recursive = False
                     has_split = True
-                    morph_by_state[num_states] = [0] * n_e
+                    morph_by_state[num_states] = np.zeros(n_e, dtype=np.int64)
                     candidates = dict.fromkeys(to_split, True)  # dedup, ordered
                     for candidate in candidates:
                         epsilon[candidate] = num_states
                         invepsilon[num_states][candidate] = True
                         invepsilon[state].pop(candidate)
-                        m = [
-                            fut[(candidate[0] + (ex,), candidate[1] + (ey,))]
-                            for ex, ey in e_symbols
-                        ]
-                        dst_new = morph_by_state[num_states]
-                        dst_old = morph_by_state[state]
-                        for k in range(n_e):
-                            dst_new[k] += m[k]
-                            dst_old[k] -= m[k]
+                        m = _dense_morph(candidate)
+                        morph_by_state[num_states] += m
+                        morph_by_state[state] -= m
                     num_states += 1
                     break  # restart e_symbol scan
             if has_split:
@@ -648,7 +667,8 @@ def build_transducer(
     epsilon : dict
         ``History -> int state`` from :func:`run_cssr`.
     morph_by_state : dict
-        ``int state -> list[int]`` morph counts from :func:`run_cssr`.
+        ``int state -> numpy.ndarray`` (int64) morph counts from
+        :func:`run_cssr`.
     input_alphabet, output_alphabet : Alphabet
         Token alphabets. ``len(input_alphabet) == n_x``,
         ``len(output_alphabet) == n_y``.
