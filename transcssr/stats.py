@@ -83,39 +83,52 @@ def compare_morphs(
             f"{a1.shape} and {a2.shape}."
         )
 
-    statistic = 0.0
-    df_x = 0
+    # Vectorized equivalent of the legacy per-cell loop (correct stride n_y):
+    # reshape the flat morphs to ``(n_x, n_y)`` so each row is one input
+    # symbol's conditional output counts, then accumulate the statistic over
+    # all cells at once. Summation order differs from the scalar loop, so the
+    # statistic can differ by a few ULP; this comparator backs
+    # ``stats_mode='correct'`` only (golden parity uses the exact-order legacy
+    # comparator in ``transcssr.cssr``), so that is acceptable here.
+    r1 = a1.reshape(n_x, n_y)
+    r2 = a2.reshape(n_x, n_y)
+    n1 = r1.sum(axis=1)
+    n2 = r2.sum(axis=1)
 
-    for row_ind in range(n_x):
-        start = row_ind * n_y  # correct stride (SPEC §2.1)
-        tmp1 = a1[start : start + n_y]
-        tmp2 = a2[start : start + n_y]
+    # An (X_t, past) unseen in either morph is not held against a state: rows
+    # with a zero total in either morph contribute to neither statistic nor df.
+    row_mask = (n1 != 0) & (n2 != 0)
+    df_x = int(row_mask.sum())
 
-        n1 = tmp1.sum()
-        n2 = tmp2.sum()
-        if n1 == 0 or n2 == 0:
-            # An (X_t, past) unseen in either morph is not held against a state.
-            continue
+    if df_x == 0:
+        statistic = 0.0
+    else:
+        r1 = r1[row_mask]
+        r2 = r2[row_mask]
+        n1 = n1[row_mask]
+        n2 = n2[row_mask]
+        theta0 = (r1 + r2) / (n1 + n2)[:, None]
+        denom1 = n1[:, None] * theta0
+        denom2 = n2[:, None] * theta0
 
-        df_x += 1
-        theta0 = (tmp1 + tmp2) / (n1 + n2)
-        ns = (n1, n2)
-        table = (tmp1, tmp2)
-
-        for array_ind in range(n_y):
-            for sample_ind in (0, 1):
-                denom = ns[sample_ind] * theta0[array_ind]
-                if denom == 0:
-                    continue
-                obs = table[sample_ind][array_ind]
-                if test == "chi2":
-                    statistic += (obs - denom) ** 2 / denom
-                else:  # G-test
-                    if obs != 0:
-                        statistic += obs * np.log(obs / denom)
-
-    if test == "G":
-        statistic *= 2
+        if test == "chi2":
+            # denom == 0 (theta0 == 0) implies obs == 0 in that cell, so it
+            # contributes nothing; guard the division to avoid 0/0.
+            nz1 = denom1 != 0
+            nz2 = denom2 != 0
+            c1 = np.where(nz1, (r1 - denom1) ** 2 / np.where(nz1, denom1, 1.0), 0.0)
+            c2 = np.where(nz2, (r2 - denom2) ** 2 / np.where(nz2, denom2, 1.0), 0.0)
+            statistic = float(c1.sum() + c2.sum())
+        else:  # G-test: obs * log(obs / denom), only where obs != 0.
+            pos1 = r1 != 0
+            pos2 = r2 != 0
+            g1 = np.where(
+                pos1, r1 * np.log(np.where(pos1, r1, 1.0) / np.where(pos1, denom1, 1.0)), 0.0
+            )
+            g2 = np.where(
+                pos2, r2 * np.log(np.where(pos2, r2, 1.0) / np.where(pos2, denom2, 1.0)), 0.0
+            )
+            statistic = float(2.0 * (g1.sum() + g2.sum()))
 
     df = df_x * (n_y - 1)
 

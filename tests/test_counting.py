@@ -10,13 +10,18 @@ translated to index-tuple keys through a fixed char->index map.
 from __future__ import annotations
 
 import random
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import Dict, Tuple
 
+import numpy as np
 import pytest
 
 from transCSSR import estimate_predictive_distributions
-from transcssr.counting import estimate_counts
+from transcssr.counting import (
+    estimate_counts,
+    _estimate_counts_reference,
+    _worth_vectorizing,
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -247,3 +252,161 @@ def test_mismatched_lengths_raises():
 def test_counting_method_1_raises():
     with pytest.raises(NotImplementedError):
         estimate_counts([(0, 1)], [(0, 1)], 1, counting_method=1)
+
+
+# --------------------------------------------------------------------------- #
+# Vectorized fast path vs. pure-Python reference (ground-truth cross-checks)
+# --------------------------------------------------------------------------- #
+#
+# The reference (_estimate_counts_reference) is the original triple loop and the
+# authoritative semantics. The public estimate_counts dispatches to a numpy
+# fast path for non-tiny inputs; these tests assert the two agree EXACTLY
+# (Counter == Counter, i.e. identical keys AND counts) over a broad grid. The
+# grid spans the integer-packing branch (small alphabets/L_max, where
+# base**ncols fits int64) and the overflow-free structured branch
+# (n_symbols=30, L_max=6 -> 30**14 overflows int64), and includes realizations
+# shorter than the window so the edge effect is exercised.
+
+_GRID_N_SYMBOLS = [1, 2, 5, 30]
+_GRID_L_MAX = [0, 1, 3, 6]
+_GRID_T = [0, 3, 50, 500]
+
+
+def _random_index_seq(rng: np.random.Generator, n_symbols: int, T: int) -> list:
+    """A length-``T`` list of python ints drawn uniformly from ``0..n_symbols-1``."""
+    if T == 0:
+        return []
+    return rng.integers(0, n_symbols, size=T).tolist()
+
+
+@pytest.mark.parametrize("n_symbols", _GRID_N_SYMBOLS)
+@pytest.mark.parametrize("L_max", _GRID_L_MAX)
+@pytest.mark.parametrize("T", _GRID_T)
+def test_fastpath_matches_reference_single(n_symbols, L_max, T):
+    rng = np.random.default_rng((n_symbols * 131 + L_max) * 997 + T)
+    x = _random_index_seq(rng, n_symbols, T)
+    y = _random_index_seq(rng, n_symbols, T)
+
+    fast_marg, fast_fut = estimate_counts([x], [y], L_max)
+    ref_marg, ref_fut = _estimate_counts_reference([x], [y], L_max)
+
+    # Exact equality on the Counters (keys + counts), not allclose.
+    assert fast_marg == ref_marg
+    assert fast_fut == ref_fut
+    assert dict(fast_marg) == dict(ref_marg)
+    assert dict(fast_fut) == dict(ref_fut)
+
+
+@pytest.mark.parametrize("n_symbols", _GRID_N_SYMBOLS)
+@pytest.mark.parametrize("L_max", _GRID_L_MAX)
+def test_fastpath_matches_reference_ensemble(n_symbols, L_max):
+    rng = np.random.default_rng(n_symbols * 7919 + L_max)
+    # Mix of lengths, several shorter than the window (L_max + 1) so those
+    # realizations contribute nothing; empty realizations included.
+    lengths = [0, 1, L_max, L_max + 1, 3, 50, 200]
+    xs = [_random_index_seq(rng, n_symbols, n) for n in lengths]
+    ys = [_random_index_seq(rng, n_symbols, n) for n in lengths]
+
+    fast_marg, fast_fut = estimate_counts(xs, ys, L_max)
+    ref_marg, ref_fut = _estimate_counts_reference(xs, ys, L_max)
+
+    assert fast_marg == ref_marg
+    assert fast_fut == ref_fut
+    assert dict(fast_marg) == dict(ref_marg)
+    assert dict(fast_fut) == dict(ref_fut)
+
+
+def _periodic(pattern, T):
+    """A length-``T`` list tiling ``pattern`` (repetitive -> highly compressible)."""
+    reps = T // len(pattern) + 1
+    return (list(pattern) * reps)[:T]
+
+
+@pytest.mark.parametrize(
+    "max_token, branch",
+    [(1, "packing (base**ncols fits int64)"), (29, "structured (int64 overflow)")],
+)
+def test_fastpath_keys_are_python_int_tuples(max_token, branch):
+    """Vectorized-path keys must be plain-``int`` tuples, matching the reference.
+
+    ``max_token=1`` (base 2) exercises the integer-packing branch;
+    ``max_token=29`` (base 30, L_max=6 -> 30**14 overflows int64) exercises the
+    structured overflow-free branch. Both use compressible (periodic) data so
+    the vectorized path is actually taken, and both must decode to python
+    ``int`` (not ``numpy.int64``).
+    """
+    T = 3000
+    L_max = 6
+    x = _periodic([0, max_token, max_token, 0], T)
+    y = _periodic([0, 0, max_token, 0, max_token, max_token], T)
+
+    # Confirm the vectorized path (not the reference fallback) is exercised.
+    xa = np.asarray(x, dtype=np.int64)
+    ya = np.asarray(y, dtype=np.int64)
+    base = max(int(xa.max()), int(ya.max())) + 1
+    assert _worth_vectorizing([(xa, ya)], L_max + 1, base, T - L_max) is True
+
+    marg, fut = estimate_counts([x], [y], L_max)
+    ref_marg, ref_fut = _estimate_counts_reference([x], [y], L_max)
+    assert marg == ref_marg and fut == ref_fut  # correctness on this branch
+    assert len(marg) > 0 and len(fut) > 0
+    for x_hist, y_hist in list(marg.keys()) + list(fut.keys()):
+        for value in x_hist + y_hist:
+            assert type(value) is int
+
+
+def test_worth_vectorizing_defers_on_iid_data():
+    """The adaptive pre-check declines to vectorize near-incompressible data."""
+    rng = np.random.default_rng(5)
+    T = 5000
+    L_max = 6
+    xa = np.asarray(_random_index_seq(rng, 27, T), dtype=np.int64)
+    ya = np.asarray(_random_index_seq(rng, 27, T), dtype=np.int64)
+    base = max(int(xa.max()), int(ya.max())) + 1
+    assert _worth_vectorizing([(xa, ya)], L_max + 1, base, T - L_max) is False
+    # ...and the output still matches the reference regardless of dispatch.
+    marg, fut = estimate_counts([xa.tolist()], [ya.tolist()], L_max)
+    ref_marg, ref_fut = _estimate_counts_reference([xa.tolist()], [ya.tolist()], L_max)
+    assert marg == ref_marg and fut == ref_fut
+
+
+def test_fastpath_intern_shares_constant_x_tuples():
+    """The epsilon-machine path has all-equal x windows; interning shares them.
+
+    With a constant input stream every x-history of a given length is the same
+    tuple ``(0,) * l``; the per-call intern cache must collapse them to a single
+    shared object (so ``id`` is identical across all keys of that length, and
+    across both the marg and fut tables). Uses periodic (compressible) output so
+    the vectorized path -- the one that interns -- is taken.
+    """
+    T = 4000
+    L_max = 5
+    y = _periodic([0, 1, 1, 2, 0, 1, 0, 2], T)  # compressible -> vectorized path
+    x = [0] * T  # constant dummy input (machine convention)
+
+    xa = np.asarray(x, dtype=np.int64)
+    ya = np.asarray(y, dtype=np.int64)
+    base = max(int(xa.max()), int(ya.max())) + 1
+    assert _worth_vectorizing([(xa, ya)], L_max + 1, base, T - L_max) is True
+
+    marg, fut = estimate_counts([x], [y], L_max)
+
+    ids_by_len = defaultdict(set)
+    for table in (marg, fut):
+        for x_hist, _ in table.keys():
+            ids_by_len[len(x_hist)].add(id(x_hist))
+
+    assert ids_by_len  # non-empty
+    for length, ids in ids_by_len.items():
+        # All (0,)*length x-halves, across marg and fut, are one shared object.
+        assert len(ids) == 1, f"x-tuples of length {length} were not interned"
+
+
+def test_tiny_input_dispatches_to_reference():
+    """Below the tiny-window threshold the output still matches the reference."""
+    x = [0, 1, 2, 0, 1]
+    y = [1, 0, 1, 0, 1]
+    fast = estimate_counts([x], [y], 1)
+    ref = _estimate_counts_reference([x], [y], 1)
+    assert fast[0] == ref[0]
+    assert fast[1] == ref[1]

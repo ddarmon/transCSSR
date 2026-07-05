@@ -25,7 +25,8 @@ Modules and responsibilities:
 - `stats.py` --- `compare_morphs`: chi2 / G morph comparison, correct `len(ays)` stride.
 - `cssr.py` --- `run_cssr` / `build_transducer`: the state-splitting + determinization algorithm on index tuples. Order-dependence is semantics; legacy iteration order is replicated exactly (see the module docstring and its `LEGACY QUIRK` comments).
 - `machine.py` --- `EpsilonTransducer` / `EpsilonMachine`: model classes, JSON serialization, DOT export.
-- `predict.py` --- `filter_and_predict` / `FilterResult`: filtering and MAP prediction.
+- `predict.py` --- `filter_and_predict` / `FilterResult`: filtering and MAP prediction (the legacy "hard" filter: exact-window synchronization, 0.5 placeholder when unsynchronized).
+- `msp.py` --- mixed-state-presentation prediction: `stationary_distribution`, `mixed_transition_matrix`, `msp_filter` / `msp_filter_machine` (Bayesian belief filtering from the stationary prior; always-defined predictive probabilities; restarts on forbidden transitions), and `log_loss` (held-out scorer in nats and bits; zero-probability events are counted in `n_zero_prob`, not smoothed). Port of legacy `filter_and_pred_probs` / `compute_mixed_transition_matrix` / `compute_channel_states_distribution`; parity is float-tolerance (`np.allclose`), not bit-exact, and one documented deviation adds a termination guard where legacy would loop forever on a globally-impossible symbol.
 - `api.py` --- `infer_transducer` / `infer_machine`: public inference entry points (normalize -> encode -> count -> CSSR -> build model).
 - `cli.py` --- the `transcssr` command (typer app): subcommands `infer` / `filter` / `show` / `export-dot`, plus `--version`. Pure argument-parsing + I/O glue; all inference logic stays in `api`/`machine`. **`typer` is imported ONLY here** (the sole non-numpy/scipy runtime dep); engine modules must never import `cli` or `typer`.
 
@@ -37,6 +38,11 @@ model = infer_transducer(xs, ys, L_max=3, alpha=0.001, test="chi2")
 machine = infer_machine(ys, L_max=3)
 result = model.filter(xs, ys)   # .states, .predictions, .prediction_probs (T, n_y)
 model.to_json(path); EpsilonTransducer.from_json(path); model.to_dot(path)
+
+# MSP (belief-state) prediction and held-out scoring:
+from transcssr import msp_filter_machine, log_loss
+probs = msp_filter_machine(machine, ys).pred_probs   # (T, n_y), always defined
+score = log_loss(machine, ys)   # .per_symbol_bits, .total_nats, .n_zero_prob
 ```
 
 ## stats_mode policy
