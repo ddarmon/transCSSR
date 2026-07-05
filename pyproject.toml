@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "transCSSR"
+version = "1.1.0"
+description = "Token-first Causal State Splitting Reconstruction (CSSR) for epsilon-machines and epsilon-transducers."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+    { name = "David Darmon", email = "ddarmon@monmouth.edu" },
+]
+keywords = [
+    "CSSR",
+    "causal states",
+    "epsilon-machine",
+    "epsilon-transducer",
+    "computational mechanics",
+    "tokens",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+
+# Runtime dependencies of the token-first ``transcssr`` package only.
+# ``typer`` powers the ``transcssr`` CLI and is imported ONLY by
+# ``transcssr/cli.py``; the engine modules stay pure numpy/scipy.
+dependencies = [
+    "numpy",
+    "scipy",
+    "typer",
+]
+
+[project.optional-dependencies]
+# Extra dependencies required only by the legacy flat modules
+# (``transCSSR.py`` / ``filter_data_methods.py``) and the demo scripts.
+legacy = [
+    "python-igraph",
+    "pandas",
+    "matplotlib",
+    "joblib",
+    "tqdm",
+]
+
+[project.scripts]
+transcssr = "transcssr.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/ddarmon/transCSSR"
+Repository = "https://github.com/ddarmon/transCSSR"
+
+# PEP 735 dependency groups (uv-native development workflow).
+[dependency-groups]
+# Everything needed to run the FULL test suite, including the
+# legacy-parity tests. The legacy engine (imported only by the tests)
+# pulls in the same packages as the ``[legacy]`` optional extra, so the
+# group self-references that extra to avoid duplication.
+dev = [
+    "pytest",
+    "transCSSR[legacy]",
+]
+
+[tool.setuptools]
+# Only the token-first package is distributed. The legacy flat modules
+# (transCSSR.py, filter_data_methods.py) are deliberately NOT shipped:
+# on case-insensitive filesystems (macOS, Windows) an installed
+# ``transCSSR.py`` and the ``transcssr/`` package collide, making
+# ``import transCSSR`` nondeterministic. The legacy engine remains
+# importable from a repo checkout (run from the repo root), where it
+# serves as the parity oracle and demo backend. See MIGRATION.md.
+packages = ["transcssr"]

@@ -36,10 +36,10 @@ print Xs[:20]
 
 print Ys[:20]
 
-with open('../data/Xt_odd-random-channel.dat', 'w') as wfile:
+with open('../../data/Xt_odd-random-channel.dat', 'w') as wfile:
 	for sym in Xs:
 		wfile.write(str(sym))
 
-with open('../data/Yt_odd-random-channel.dat', 'w') as wfile:
+with open('../../data/Yt_odd-random-channel.dat', 'w') as wfile:
 	for sym in Ys:
 		wfile.write(str(sym))
