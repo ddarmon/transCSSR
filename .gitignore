@@ -13,3 +13,6 @@ __pycache__/
 build/
 cache/
 .DS_Store
+
+# Large downloaded corpora (fetched by examples/experimental/e1_pilot.py)
+data/text8
