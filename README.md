@@ -39,10 +39,24 @@ Unix-based OS.
 
 ## Installation
 
-Install from source (editable):
+The canonical workflow uses [uv](https://docs.astral.sh/uv/). From a
+clone of the repository, `uv sync` creates a virtual environment, pins
+the interpreter (see `.python-version`), and installs the project from
+the locked `uv.lock`:
 
 ``` bash
-pip install -e .
+uv sync                 # runtime deps (numpy, scipy) + the transcssr package
+uv sync --group dev     # add the full test/dev toolchain (see Testing)
+```
+
+Run anything inside the managed environment with `uv run`, e.g.
+`uv run python demo_CSSR.py`.
+
+Prefer `uv pip` or plain `pip`? Editable installs work too:
+
+``` bash
+uv pip install -e .          # or: pip install -e .
+uv pip install -e ".[legacy]"  # add the legacy/demo extras
 ```
 
 Or install directly from GitHub:
@@ -54,11 +68,8 @@ pip install git+https://github.com/ddarmon/transCSSR
 **Dependencies:** The token-first `transcssr` package requires only
 `numpy` and `scipy`. The [legacy interface](#legacy-interface) and the
 demo scripts need additional packages (`python-igraph`, `pandas`,
-`matplotlib`, `joblib`, `tqdm`), installable as an optional extra:
-
-``` bash
-pip install -e ".[legacy]"
-```
+`matplotlib`, `joblib`, `tqdm`), installable as the optional `[legacy]`
+extra shown above.
 
 Python 3.10 or newer is required.
 
@@ -277,6 +288,20 @@ type, with no `is_multiline` flag.)
 -   `demo_*.py`, `simulation-codes/`: legacy demo and data-generation
     scripts.
 -   `data/`: datasets used by the demos and quickstarts.
+
+## Testing
+
+Install the dev toolchain and run the full suite with uv:
+
+``` bash
+uv sync --group dev
+uv run python -m pytest -q     # 144 passed
+```
+
+The `dev` dependency group installs `pytest` plus the `[legacy]` extras,
+so the legacy-parity tests (which import the legacy engine) run too. The
+two README quickstarts above are executed verbatim by
+`tests/test_readme_examples.py`, so passing the suite confirms they work.
 
 ## Contributing
 

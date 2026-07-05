@@ -7,3 +7,6 @@ transCSSR_results/
 __pycache__/
 *.egg-info/
 .pytest_cache/
+
+# uv / virtual environment (uv.lock is tracked, .venv is not)
+.venv/

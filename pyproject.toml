@@ -53,6 +53,17 @@ legacy = [
 Homepage = "https://github.com/ddarmon/transCSSR"
 Repository = "https://github.com/ddarmon/transCSSR"
 
+# PEP 735 dependency groups (uv-native development workflow).
+[dependency-groups]
+# Everything needed to run the FULL test suite, including the
+# legacy-parity tests. The legacy engine (imported only by the tests)
+# pulls in the same packages as the ``[legacy]`` optional extra, so the
+# group self-references that extra to avoid duplication.
+dev = [
+    "pytest",
+    "transCSSR[legacy]",
+]
+
 [tool.setuptools]
 # The token-first package plus the two legacy top-level modules, kept
 # importable for existing users (see MIGRATION.md).

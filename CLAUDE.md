@@ -49,11 +49,20 @@ The two modes agree whenever `n_x` is `1` or equals `n_y`; they can differ (diff
 
 ## Testing
 
-Run the full suite in the project environment:
+Canonical command (uv-native): run the full suite from the repo root.
 
 ```bash
-mamba run -n transcssr-int python -m pytest -q
+uv sync --group dev            # first time / after dependency changes
+uv run python -m pytest -q     # 144 passed
 ```
+
+The `dev` dependency group (PEP 735 `[dependency-groups]` in
+`pyproject.toml`) installs `pytest` plus the `[legacy]` extra, so the
+legacy-parity tests run. uv provisions the interpreter pinned in
+`.python-version` (3.13) and resolves from the committed `uv.lock`.
+
+Legacy fallback (the mamba env still works): `mamba run -n transcssr-int
+python -m pytest -q`.
 
 - Unit tests: `tests/test_alphabet.py`, `test_counting.py`, `test_stats.py`, `test_machine.py`, etc.
 - Parity gate: `tests/test_cssr.py` and `tests/test_predict.py` compare the new engine against the legacy oracle (partition, morphs, filtered states, probabilities, predictions).
@@ -62,11 +71,15 @@ mamba run -n transcssr-int python -m pytest -q
 
 ## Packaging
 
-`pyproject.toml` (setuptools backend). Distribution name `transCSSR`, version 1.1.x.
+`pyproject.toml` (setuptools backend --- kept because the legacy flat
+`py-modules` make setuptools the pragmatic choice; do not switch to
+`uv_build`/hatchling). Distribution name `transCSSR`, version 1.1.x.
 - `packages = ["transcssr"]` plus `py-modules = ["transCSSR", "filter_data_methods"]` (legacy surface).
 - Engine deps: `numpy`, `scipy`. Legacy deps are the optional `[legacy]` extra (`python-igraph`, `pandas`, `matplotlib`, `joblib`, `tqdm`).
-- Python `>=3.10`.
-- Editable install: `pip install -e .` (or `pip install -e ".[legacy]"` for demos).
+- Dev tooling: the PEP 735 `[dependency-groups]` `dev` group = `pytest` + a self-reference to the `transCSSR[legacy]` extra (so the full/parity suite runs without duplicating the legacy dep list).
+- Python `>=3.10`; `.python-version` pins `3.13` for the uv workflow.
+- uv-native: `uv sync` / `uv sync --group dev`, resolved from the committed `uv.lock` (tracked; `.venv/` is gitignored).
+- Editable install (fallback): `pip install -e .` (or `pip install -e ".[legacy]"` for demos).
 
 ## Directory structure
 
