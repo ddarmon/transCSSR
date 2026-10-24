@@ -71,7 +71,7 @@ demo scripts need additional packages (`python-igraph`, `pandas`,
 `matplotlib`, `joblib`, `tqdm`), installable as the optional `[legacy]`
 extra shown above.
 
-Python 3.10 or newer is required.
+Python 3.11 or newer is required.
 
 ### Graphviz
 
