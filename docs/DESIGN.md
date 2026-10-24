@@ -274,7 +274,7 @@ For each golden case and each live legacy-vs-new run:
   (`api`, `machine`, `predict`, `cssr`, `counting`, `stats`, `alphabet`)
   stay pure numpy/scipy and must never import `cli` or `typer`. (Legacy
   modules keep their deps; that's fine.)
-- Python >= 3.10. Full type hints. 4-space indents, PEP8 naming.
+- Python >= 3.11. Full type hints. 4-space indents, PEP8 naming.
   Docstrings in numpydoc style (matches the legacy house style).
 - No prints in library code; use warnings/exceptions. A `verbose` flag may
   gate optional progress output in `infer_*` only.

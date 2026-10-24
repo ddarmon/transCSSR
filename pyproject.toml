@@ -7,7 +7,7 @@ name = "transCSSR"
 version = "1.1.0"
 description = "Token-first Causal State Splitting Reconstruction (CSSR) for epsilon-machines and epsilon-transducers."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = { text = "GPL-3.0-or-later" }
 authors = [
     { name = "David Darmon", email = "ddarmon@monmouth.edu" },
@@ -26,7 +26,6 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Information Analysis",

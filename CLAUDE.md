@@ -93,7 +93,7 @@ version 1.1.x.
 - Engine deps: `numpy`, `scipy`, plus `typer` for the CLI (imported only by `cli.py`). Legacy deps are the optional `[legacy]` extra (`python-igraph`, `pandas`, `matplotlib`, `joblib`, `tqdm`).
 - Console script: `[project.scripts]` `transcssr = "transcssr.cli:app"`.
 - Dev tooling: the PEP 735 `[dependency-groups]` `dev` group = `pytest` + a self-reference to the `transCSSR[legacy]` extra (so the full/parity suite runs without duplicating the legacy dep list).
-- Python `>=3.10`; `.python-version` pins `3.13` for the uv workflow.
+- Python `>=3.11`; `.python-version` pins `3.13` for the uv workflow.
 - uv-native: `uv sync` / `uv sync --group dev`, resolved from the committed `uv.lock` (tracked; `.venv/` is gitignored).
 - Editable install (fallback): `pip install -e .` (or `pip install -e ".[legacy]"` for demos).
 
@@ -111,5 +111,5 @@ version 1.1.x.
 
 ## Conventions
 
-- Token-first package: numpy/scipy only, Python >= 3.10, full type hints, numpydoc docstrings, no prints in library code (warnings/exceptions instead), determinism everywhere (no wall-clock, no randomness, no unordered iteration).
+- Token-first package: numpy/scipy only, Python >= 3.11, full type hints, numpydoc docstrings, no prints in library code (warnings/exceptions instead), determinism everywhere (no wall-clock, no randomness, no unordered iteration).
 - Legacy modules: do not modify to change behavior; they are the parity oracle.

@@ -108,7 +108,7 @@ policy applies only to the already-ported partition algorithm).
 
 - [ ] **CI** — GitHub Actions: `uv sync --group dev` + full pytest
       (the parity gate runs on every push). Consider a matrix over
-      Python 3.10–3.13.
+      Python 3.11–3.13.
 - [x] **Open the PR** — DONE 2026-07-05: branch renamed
       `transcssr-int` → `feature/token-first-engine`, default branch
       renamed `master` → `main`, PR #4 opened
